@@ -30,11 +30,11 @@ export async function removeWorktree(repoPath: string, worktreePath: string): Pr
 export async function getDiffFiles(cwd: string): Promise<string[]> {
   const { exitCode, stdout } = await runCommand('git', ['diff', '--name-only'], cwd);
   if (exitCode !== 0) return [];
-  const files = stdout.split('\n').map(s => s.trim()).filter(Boolean);
+  const files = stdout.split('\n').map((s: string) => s.trim()).filter(Boolean);
   
   const { exitCode: exitCodeUntracked, stdout: stdoutUntracked } = await runCommand('git', ['ls-files', '--others', '--exclude-standard'], cwd);
   if (exitCodeUntracked === 0) {
-    const untracked = stdoutUntracked.split('\n').map(s => s.trim()).filter(Boolean);
+    const untracked = stdoutUntracked.split('\n').map((s: string) => s.trim()).filter(Boolean);
     files.push(...untracked);
   }
   
