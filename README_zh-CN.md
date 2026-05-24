@@ -91,6 +91,15 @@ args = ["/你本地的绝对路径/codex-agy-delegator/dist/src/index.js"]
 
 ## 🧠 配置 Skills
 
+我们提供了一个自动化脚本，能够直接将这些设定好的 Prompt (Skills) 自动安装注入到您系统的 Codex 和 Antigravity 默认配置目录中。运行：
+
+```bash
+npm run install:skills
+```
+
+<details>
+<summary>手动配置 (如果您想指定其他目录)</summary>
+
 ### 对于 Codex
 复制或链接提供的 Skills 到您的 Codex 自定义规则或 Prompt 中：
 - [`skills/codex-delegation/SKILL.md`](skills/codex-delegation/SKILL.md) (教 Codex *如何委派*)
@@ -98,6 +107,7 @@ args = ["/你本地的绝对路径/codex-agy-delegator/dist/src/index.js"]
 
 ### 对于 Antigravity (agy)
 MCP Server 会自动生成带有严格指令的 `task.md` 传给 `agy`。为了最佳效果，您可以将 [`skills/agy-worker/SKILL.md`](skills/agy-worker/SKILL.md) 预置为 agy 的系统 Prompt。
+</details>
 
 ## 🚀 典型工作流
 

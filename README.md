@@ -91,6 +91,15 @@ args = ["/absolute/path/to/your/repo/codex-agy-delegator/dist/src/index.js"]
 
 ## 🧠 Setting Up the Skills
 
+We provide an automated script to install the skills directly into your Codex and Antigravity configuration directories. Run:
+
+```bash
+npm run install:skills
+```
+
+<details>
+<summary>Manual Installation</summary>
+
 ### For Codex
 Copy or link the provided skills into your Codex skills directory:
 - [`skills/codex-delegation/SKILL.md`](skills/codex-delegation/SKILL.md) (teaches Codex *how to delegate*)
@@ -98,6 +107,7 @@ Copy or link the provided skills into your Codex skills directory:
 
 ### For Antigravity (agy)
 The MCP server will automatically pass a synthesized `task.md` to `agy`. To ensure best results, pre-load [`skills/agy-worker/SKILL.md`](skills/agy-worker/SKILL.md) into your default Antigravity CLI system prompt.
+</details>
 
 ## 🚀 Example Workflow
 
