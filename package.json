@@ -12,8 +12,7 @@
     "selfcheck": "echo 'Compiled and running'",
     "test:unit": "node --test dist/tests/*.test.js",
     "test": "npm run build && npm run test:unit && npm run selfcheck",
-    "install:codex": "node scripts/install-codex-mcp.cjs",
-    "install:skills": "node scripts/install-skills.cjs"
+    "setup": "node scripts/install.cjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.1"

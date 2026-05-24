@@ -67,19 +67,24 @@ To verify the build:
 npm run selfcheck
 ```
 
-## ⚡ Quick Setup for Codex
+## ⚡ Quick Setup
 
-We provide an automated script to help you configure Codex quickly. Run:
+We provide an automated script to install the skills directly into your Codex and Antigravity configuration directories, and automatically append the MCP configuration to Codex. 
+
+Simply run:
 
 ```bash
-npm run install:codex
+npm run setup
 ```
 
-This script will generate your local absolute path and attempt to auto-append it to common Codex MCP configuration files (e.g., `~/.codex/mcp.toml`). If it cannot find the file automatically, it will print the TOML block for you to copy.
+This single command will:
+1. **Install Skills**: Copies `codex-delegation` and `codex-review` to `~/.codex/skills/`, and `agy-worker` to `~/.antigravitycli/skills/`.
+2. **Configure MCP**: Appends the local absolute path of the built server into `~/.codex/mcp.toml`.
 
 <details>
-<summary>Manual Configuration Example</summary>
+<summary>Manual Configuration Instructions</summary>
 
+### MCP Configuration
 Add this to your `mcp.toml` or `config.json` manually:
 
 ```toml
@@ -87,26 +92,13 @@ Add this to your `mcp.toml` or `config.json` manually:
 command = "node"
 args = ["/absolute/path/to/your/repo/codex-agy-delegator/dist/src/index.js"]
 ```
-</details>
 
-## 🧠 Setting Up the Skills
-
-We provide an automated script to install the skills directly into your Codex and Antigravity configuration directories. Run:
-
-```bash
-npm run install:skills
-```
-
-<details>
-<summary>Manual Installation</summary>
-
-### For Codex
-Copy or link the provided skills into your Codex skills directory:
+### Skills Installation
+**For Codex**: Copy or link the provided skills into your Codex skills directory:
 - [`skills/codex-delegation/SKILL.md`](skills/codex-delegation/SKILL.md) (teaches Codex *how to delegate*)
 - [`skills/codex-review/SKILL.md`](skills/codex-review/SKILL.md) (teaches Codex *how to review*)
 
-### For Antigravity (agy)
-The MCP server will automatically pass a synthesized `task.md` to `agy`. To ensure best results, pre-load [`skills/agy-worker/SKILL.md`](skills/agy-worker/SKILL.md) into your default Antigravity CLI system prompt.
+**For Antigravity (agy)**: Pre-load [`skills/agy-worker/SKILL.md`](skills/agy-worker/SKILL.md) into your default Antigravity CLI system prompt.
 </details>
 
 ## 🚀 Example Workflow

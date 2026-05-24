@@ -67,19 +67,24 @@ npm run build
 npm run selfcheck
 ```
 
-## ⚡ Codex 一键配置
+## ⚡ 一键配置 (Quick Setup)
 
-我们提供了一个自动化脚本来帮助您将该服务快速注入到 Codex 中：
+我们提供了一个极其方便的自动化脚本，它能够同时为您安装 Skills 并注入 MCP 配置。
+
+请在项目根目录运行：
 
 ```bash
-npm run install:codex
+npm run setup
 ```
 
-该脚本会自动获取您本地的绝对路径，并尝试将其自动追加到常见的 Codex MCP 配置文件中（如 `~/.codex/mcp.toml`）。如果未找到对应文件，它会打印出配置块，您可以直接复制并手动粘贴。
+该命令将自动执行以下两步：
+1. **安装 Skills**: 自动将 `codex-delegation` 和 `codex-review` 注入到 `~/.codex/skills/`，将 `agy-worker` 注入到 `~/.antigravitycli/skills/`。
+2. **配置 MCP**: 自动探寻您的 Codex 配置文件（如 `~/.codex/mcp.toml`），并追加该 MCP 服务的绝对路径配置。
 
 <details>
-<summary>手动配置示例</summary>
+<summary>手动配置 (如果您想指定其他目录)</summary>
 
+### 手动配置 MCP
 将以下内容手动添加到你的 `mcp.toml` 或 `config.json` 中：
 
 ```toml
@@ -87,26 +92,13 @@ npm run install:codex
 command = "node"
 args = ["/你本地的绝对路径/codex-agy-delegator/dist/src/index.js"]
 ```
-</details>
 
-## 🧠 配置 Skills
-
-我们提供了一个自动化脚本，能够直接将这些设定好的 Prompt (Skills) 自动安装注入到您系统的 Codex 和 Antigravity 默认配置目录中。运行：
-
-```bash
-npm run install:skills
-```
-
-<details>
-<summary>手动配置 (如果您想指定其他目录)</summary>
-
-### 对于 Codex
-复制或链接提供的 Skills 到您的 Codex 自定义规则或 Prompt 中：
+### 手动安装 Skills
+**对于 Codex**: 复制或链接提供的 Skills 到您的 Codex 自定义规则或 Prompt 中：
 - [`skills/codex-delegation/SKILL.md`](skills/codex-delegation/SKILL.md) (教 Codex *如何委派*)
 - [`skills/codex-review/SKILL.md`](skills/codex-review/SKILL.md) (教 Codex *如何审查*)
 
-### 对于 Antigravity (agy)
-MCP Server 会自动生成带有严格指令的 `task.md` 传给 `agy`。为了最佳效果，您可以将 [`skills/agy-worker/SKILL.md`](skills/agy-worker/SKILL.md) 预置为 agy 的系统 Prompt。
+**对于 Antigravity (agy)**: MCP Server 会自动生成带有严格指令的 `task.md` 传给 `agy`。为了最佳效果，您可以将 [`skills/agy-worker/SKILL.md`](skills/agy-worker/SKILL.md) 预置为 agy 的系统 Prompt。
 </details>
 
 ## 🚀 典型工作流
