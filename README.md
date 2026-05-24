@@ -53,10 +53,16 @@ Before installing, ensure your environment is prepared:
 
 ## ⚡ Quick Start (One-Line Installation)
 
-You do **not** need to manually clone, install, or build the project. Simply run this one-line command in your terminal:
+You do **not** need to manually clone, install, or build the project. Simply run the one-line command for your operating system in your terminal:
 
+**For macOS & Linux (Bash):**
 ```bash
 curl -fsSL https://raw.githubusercontent.com/swjturay/codex-agy-delegator/main/install.sh | bash
+```
+
+**For Windows (PowerShell):**
+```powershell
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/swjturay/codex-agy-delegator/main/install.ps1" -UseBasicParsing | Invoke-Expression
 ```
 
 This single command will:

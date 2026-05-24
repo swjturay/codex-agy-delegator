@@ -53,10 +53,16 @@
 
 ## ⚡ 极速安装 (一键脚本)
 
-您**完全不需要**手动拉取代码、安装依赖或编译。只需在终端中执行以下这行命令：
+您**完全不需要**手动拉取代码、安装依赖或编译。只需在终端中根据您的操作系统执行以下对应的命令：
 
+**对于 macOS 和 Linux 用户 (Bash):**
 ```bash
 curl -fsSL https://raw.githubusercontent.com/swjturay/codex-agy-delegator/main/install.sh | bash
+```
+
+**对于 Windows 用户 (PowerShell):**
+```powershell
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/swjturay/codex-agy-delegator/main/install.ps1" -UseBasicParsing | Invoke-Expression
 ```
 
 该脚本将全自动为您完成以下工作：
