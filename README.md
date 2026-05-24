@@ -1,70 +1,100 @@
 # Codex-Agy Delegator MCP Server
 
-## 1. Project Purpose
-The **Codex-Agy Delegator** provides an MCP (Model Context Protocol) interface that allows **Codex** to securely delegate low-risk, bulk, or repetitive coding tasks to an **Antigravity CLI (agy)** worker. 
+<div align="center">
+  <a href="README.md">English</a> | <a href="README_zh-CN.md">简体中文</a>
+</div>
 
-The goal is to **save Codex tokens**. Instead of Codex spending huge context windows performing mechanical changes or reading large diffs, it spins up an isolated `agy` worker in a `git worktree`. The worker performs the task and returns a highly condensed JSON report (diff summaries, test results, risk notes). Codex then acts purely as a Reviewer and Gatekeeper.
+<br/>
 
-## 2. Why MCP + Skills are Both Needed
-- **MCP Server:** This is the execution layer. It handles git worktrees, creates `task.md`, safely spawns the `agy` subprocess, runs tests, truncates logs, and parses the structured report. It enforces isolation and guarantees the output returned to Codex is minimal.
-- **Skills (Markdown rules):** These are the behavioral layer. 
-  - `codex-delegation` and `codex-review` Skills teach Codex *when* to use the MCP server, what tasks are safe, and how to read the condensed report without falling back to reading the whole project.
-  - `agy-worker` Skill teaches the Antigravity agent to act strictly as a worker, output the required JSON format, and respect `allowedFiles`/`forbiddenFiles` boundaries.
+<div align="center">
+  <img alt="Node.js" src="https://img.shields.io/badge/Node.js-18+-green.svg" />
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.3+-blue.svg" />
+  <img alt="License" src="https://img.shields.io/badge/License-MIT-yellow.svg" />
+  <img alt="MCP" src="https://img.shields.io/badge/MCP-Supported-purple.svg" />
+</div>
 
-## 3. Installation
-Ensure you have Node.js and TypeScript installed.
+<br/>
+
+> **Save Codex tokens and supercharge your AI pair programming.**  
+> The Codex-Agy Delegator is an MCP (Model Context Protocol) Server that allows **Codex** to securely delegate low-risk, bulk, or repetitive coding tasks to an **Antigravity (agy)** worker.
+
+---
+
+## 📖 Table of Contents
+- [Why Use This?](#-why-use-this)
+- [How It Works](#-how-it-works)
+- [Installation](#-installation)
+- [Quick Setup for Codex](#-quick-setup-for-codex)
+- [Setting Up the Skills](#-setting-up-the-skills)
+- [Example Workflow](#-example-workflow)
+- [Security & Isolation](#-security--isolation)
+
+---
+
+## 🎯 Why Use This?
+Instead of Codex spending huge context windows performing mechanical changes or reading large diffs, it spins up an isolated `agy` worker in a `git worktree`. 
+- **Token Efficiency:** Codex reads a highly condensed JSON report instead of large diffs.
+- **Safety:** Worker modifications are isolated in a Git worktree.
+- **Role Separation:** Codex acts purely as the Reviewer and Architect, while Agy does the heavy lifting.
+
+## 🛠 How It Works
+1. **MCP Server:** The execution layer. It manages git worktrees, creates instructions (`task.md`), spawns the `agy` worker, runs tests, and parses the structured report.
+2. **Skills (Markdown rules):** The behavioral layer.
+   - **Codex Skills:** Teaches Codex *when* to delegate and *how* to review the JSON report without falling back to full-project scanning.
+   - **Agy Skill:** Restricts the Antigravity worker to boundaries (`allowedFiles`, `forbiddenFiles`) and enforces strict JSON output.
+
+## 💻 Installation
+
+Ensure you have Node.js and TypeScript installed on your system.
 
 ```bash
-cd tools/codex-agy-delegator
+git clone https://github.com/swjturay/codex-agy-delegator.git
+cd codex-agy-delegator
 npm install
-```
-*(If you do not have `npm` globally installed, you can use `yarn` or `pnpm`)*
-
-Dependencies required:
-- `@modelcontextprotocol/sdk`
-- `@types/node` (dev)
-- `typescript` (dev)
-
-## 4. Building
-Compile the TypeScript code to JavaScript:
-
-```bash
 npm run build
 ```
 
-Verify everything is working with:
+To verify the build:
 ```bash
 npm run selfcheck
 ```
 
-## 5. Codex MCP Configuration
-We have provided an automated script to help you configure Codex quickly. Simply run:
+## ⚡ Quick Setup for Codex
+
+We provide an automated script to help you configure Codex quickly. Run:
 
 ```bash
 npm run install:codex
 ```
 
-This script will generate the absolute path for your local setup and attempt to auto-append it to common Codex MCP configuration files (like `~/.codex/mcp.toml`). If it cannot find the file automatically, it will print the configuration block for you to copy and paste manually.
+This script will generate your local absolute path and attempt to auto-append it to common Codex MCP configuration files (e.g., `~/.codex/mcp.toml`). If it cannot find the file automatically, it will print the TOML block for you to copy.
 
-**Example of the generated `mcp.toml` block:**
+<details>
+<summary>Manual Configuration Example</summary>
+
+Add this to your `mcp.toml` or `config.json` manually:
+
 ```toml
 [mcp_servers.codex-agy-delegator]
 command = "node"
-# The script will automatically resolve this to your real absolute path!
-args = ["/absolute/path/to/your/repo/tools/codex-agy-delegator/dist/index.js"]
+args = ["/absolute/path/to/your/repo/codex-agy-delegator/dist/index.js"]
 ```
+</details>
 
-## 6. How to Install / Reference Codex Skills
-Copy or link the provided skills into your Codex skills directory or prompt instructions.
-- Add `skills/codex-delegation/SKILL.md` so Codex knows *how to delegate*.
-- Add `skills/codex-review/SKILL.md` so Codex knows *how to review*.
+## 🧠 Setting Up the Skills
 
-## 7. How to Install / Reference Antigravity Skill
-When the MCP Server invokes `agy`, you can configure your default Antigravity CLI to load `skills/agy-worker/SKILL.md` globally, or include it in your system prompts for the agy CLI. The MCP server will automatically pass a synthesized `task.md` that enforces the JSON output.
+### For Codex
+Copy or link the provided skills into your Codex skills directory:
+- [`skills/codex-delegation/SKILL.md`](skills/codex-delegation/SKILL.md) (teaches Codex *how to delegate*)
+- [`skills/codex-review/SKILL.md`](skills/codex-review/SKILL.md) (teaches Codex *how to review*)
 
-## 8. Complete Example Workflow
+### For Antigravity (agy)
+The MCP server will automatically pass a synthesized `task.md` to `agy`. To ensure best results, pre-load [`skills/agy-worker/SKILL.md`](skills/agy-worker/SKILL.md) into your default Antigravity CLI system prompt.
+
+## 🚀 Example Workflow
+
 1. **User Request:** "Codex, please update all `interface` definitions in `src/models/` to `type`."
-2. **Codex Action:** Codex realizes this is a bulk refactor. It calls the `delegate_to_agy` MCP tool:
+2. **Codex Delegates:** Codex uses the MCP tool:
    ```json
    {
      "repoPath": "/path/to/repo",
@@ -72,25 +102,11 @@ When the MCP Server invokes `agy`, you can configure your default Antigravity CL
      "allowedFiles": ["src/models/*.ts"]
    }
    ```
-3. **MCP Server:**
-   - Creates a git worktree `.agy-worktrees/<run-id>`.
-   - Writes `task.md`.
-   - Spawns `agy "task.md content"`.
-4. **Agy Worker:** Reads the task, performs the changes, and outputs the `AgyWorkerReport` JSON.
-5. **MCP Server:** Runs tests, extracts the JSON, and returns a condensed summary to Codex.
-6. **Codex Review:** Codex reads the returned JSON. Tests passed, risk notes are clean. Codex tells the user: "The refactor was completed successfully by the worker. Tests passed. You can merge the worktree branch."
+3. **MCP Server Executes:** 
+   Creates a `.agy-worktrees` branch -> Spawns `agy` -> Runs tests -> Extracts the `AgyWorkerReport` JSON.
+4. **Codex Reviews:** Codex reads the returned, condensed JSON. Tests passed, no risk notes. Codex replies: *"The refactor was completed successfully by the worker. Tests passed. You can merge the worktree branch."*
 
-## 9. Security & Limits
-- **No auto-commit/push:** The MCP server will never commit or push changes. It leaves them in the worktree.
-- **Forbidden files enforcement:** If the worker modifies a file in `forbiddenFiles`, the MCP server flags the run as `blocked` and warns Codex.
-- **Timeouts:** Agy processes are strictly killed after `timeoutMs`.
-- **Safe Command Execution:** Shell execution avoids string interpolation (`execFile`/`spawn` are used).
-
-## 10. Known Limitations
-- The MCP server currently expects `agy` to be available in the `PATH` and callable via `agy [instructions]`. If your Antigravity CLI uses different flags, you must modify `src/tools/delegateToAgy.ts`.
-- Simple wildcard matching for `forbiddenFiles` is used (basic `includes`). For complex globs, a library like `minimatch` should be added.
-
-## 11. Future Improvements
-- Add auto-cleanup of stale worktrees.
-- Support parallel execution of multiple agy workers for large codebases.
-- Better glob pattern support for `allowedFiles`/`forbiddenFiles`.
+## 🛡 Security & Isolation
+- **No auto-commit/push:** Leaves changes in a safe worktree.
+- **Forbidden files enforcement:** If the worker touches restricted files, the MCP server flags the run as `blocked`.
+- **Timeouts:** Agy processes are strictly killed after timeouts to prevent runaway processes.
