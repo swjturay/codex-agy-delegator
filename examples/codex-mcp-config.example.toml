@@ -1,0 +1,4 @@
+[mcp_servers.codex-agy-delegator]
+command = "node"
+# PLEASE REPLACE WITH YOUR ACTUAL ABSOLUTE PATH
+args = ["/absolute/path/to/tools/codex-agy-delegator/dist/index.js"]

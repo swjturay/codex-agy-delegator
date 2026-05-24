@@ -1,0 +1,26 @@
+{
+  "changed_files": [
+    "src/models/user.ts",
+    "src/models/order.ts"
+  ],
+  "implementation_summary": "Converted all interface definitions to type alias definitions in the models directory as requested.",
+  "tests_run": [
+    "npm run typecheck"
+  ],
+  "test_results": [
+    {
+      "command": "npm run typecheck",
+      "exitCode": 0,
+      "output": "No errors found."
+    }
+  ],
+  "risk_notes": [
+    "Type definitions don't support declaration merging like interfaces do. Ensure no downstream code relies on interface merging."
+  ],
+  "review_focus": [
+    "src/models/user.ts"
+  ],
+  "assumptions": [
+    "Assumed that intersection types should be used where interfaces previously extended other interfaces."
+  ]
+}
