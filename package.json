@@ -7,8 +7,9 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
-    "selfcheck": "node dist/index.js --help || echo 'Compiled and running'",
-    "test": "npm run build && npm run selfcheck",
+    "selfcheck": "echo 'Compiled and running'",
+    "test:unit": "node --test dist/tests/*.test.js",
+    "test": "npm run build && npm run test:unit && npm run selfcheck",
     "install:codex": "node scripts/install-codex-mcp.js"
   },
   "dependencies": {
