@@ -80,7 +80,7 @@ for (const skill of skillsToInstall) {
 // ---------------------------------------------------------
 console.log(`\n[2/2] Configuring MCP Server for Codex...`);
 
-const distIndex = path.resolve(__dirname, '..', 'dist', 'src', 'index.js').replace(/\\/g, '/');
+const distIndex = path.resolve(__dirname, '..', 'dist', 'index.js').replace(/\\/g, '/');
 const tomlConfig = `\n[mcp_servers.codex-agy-delegator]
 command = "node"
 args = ["${distIndex}"]\n`;

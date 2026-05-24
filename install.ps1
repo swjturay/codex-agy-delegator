@@ -25,12 +25,6 @@ if (Test-Path $TargetDir) {
     Set-Location $TargetDir
 }
 
-Write-Host "⚙️  Installing dependencies..." -ForegroundColor Yellow
-npm install --no-fund --no-audit --silent
-
-Write-Host "🔨 Compiling project..." -ForegroundColor Yellow
-npm run build | Out-Null
-
 Write-Host "🛠  Running setup..." -ForegroundColor Yellow
 npm run setup
 

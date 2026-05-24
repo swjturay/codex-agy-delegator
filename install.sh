@@ -25,12 +25,6 @@ else
   cd "$TARGET_DIR"
 fi
 
-echo "⚙️  Installing dependencies..."
-npm install --no-fund --no-audit --silent
-
-echo "🔨 Compiling project..."
-npm run build > /dev/null 2>&1
-
 echo "🛠  Running setup..."
 npm run setup
 
