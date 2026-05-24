@@ -51,35 +51,21 @@
    - 必须**提前完成 `agy` 的登录和认证配置**。确保 CLI 在后台非交互式运行时，不会因为缺少认证凭证或弹窗而被阻塞。
 3. **Codex**：本地已安装 Codex 或支持 MCP 协议的客户端。
 
-## 💻 安装指南
+## ⚡ 极速安装 (一键脚本)
 
-在安装前，请确保系统已配置 Node.js 和 TypeScript。
-
-```bash
-git clone https://github.com/swjturay/codex-agy-delegator.git
-cd codex-agy-delegator
-npm install
-npm run build
-```
-
-验证是否构建成功：
-```bash
-npm run selfcheck
-```
-
-## ⚡ 一键配置 (Quick Setup)
-
-我们提供了一个极其方便的自动化脚本，它能够同时为您安装 Skills 并注入 MCP 配置。
-
-请在项目根目录运行：
+您**完全不需要**手动拉取代码、安装依赖或编译。只需在终端中执行以下这行命令：
 
 ```bash
-npm run setup
+curl -fsSL https://raw.githubusercontent.com/swjturay/codex-agy-delegator/main/install.sh | bash
 ```
 
-该命令将自动执行以下两步：
-1. **安装 Skills**: 自动将 `codex-delegation` 和 `codex-review` 注入到 `~/.codex/skills/`，将 `agy-worker` 注入到 `~/.antigravitycli/skills/`。
-2. **配置 MCP**: 自动探寻您的 Codex 配置文件（如 `~/.codex/mcp.toml`），并追加该 MCP 服务的绝对路径配置。
+该脚本将全自动为您完成以下工作：
+1. 将仓库安全地下载到 `~/.codex-agy-delegator` 隐藏目录中。
+2. 自动安装 Node.js 依赖并编译 TypeScript 代码。
+3. 自动探寻您的 Codex 配置文件（如 `~/.codex/mcp.toml`）并注入 MCP 服务配置。
+4. 自动为您将设定好的 Prompt (Skills) 注入到 Codex 和 Antigravity 默认规则目录中。
+
+安装完成后，**重启您的 Codex 客户端**即可直接使用！
 
 <details>
 <summary>手动配置 (如果您想指定其他目录)</summary>

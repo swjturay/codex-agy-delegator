@@ -51,35 +51,21 @@ Before installing, ensure your environment is prepared:
    - You must **complete authentication and setup for `agy`** beforehand. The CLI must be able to run prompts non-interactively without blocking on login prompts.
 3. **Codex**: A local installation of Codex or a compatible MCP client.
 
-## 💻 Installation
+## ⚡ Quick Start (One-Line Installation)
 
-Ensure you have Node.js and TypeScript installed on your system.
-
-```bash
-git clone https://github.com/swjturay/codex-agy-delegator.git
-cd codex-agy-delegator
-npm install
-npm run build
-```
-
-To verify the build:
-```bash
-npm run selfcheck
-```
-
-## ⚡ Quick Setup
-
-We provide an automated script to install the skills directly into your Codex and Antigravity configuration directories, and automatically append the MCP configuration to Codex. 
-
-Simply run:
+You do **not** need to manually clone, install, or build the project. Simply run this one-line command in your terminal:
 
 ```bash
-npm run setup
+curl -fsSL https://raw.githubusercontent.com/swjturay/codex-agy-delegator/main/install.sh | bash
 ```
 
 This single command will:
-1. **Install Skills**: Copies `codex-delegation` and `codex-review` to `~/.codex/skills/`, and `agy-worker` to `~/.antigravitycli/skills/`.
-2. **Configure MCP**: Appends the local absolute path of the built server into `~/.codex/mcp.toml`.
+1. Clone the repository to `~/.codex-agy-delegator`.
+2. Install Node.js dependencies and compile the TypeScript code.
+3. Automatically configure the MCP Server in your `~/.codex/mcp.toml`.
+4. Automatically install the required Prompt Skills for Codex and Agy.
+
+Once the script finishes, **restart your Codex client** and you are ready to go!
 
 <details>
 <summary>Manual Configuration Instructions</summary>
