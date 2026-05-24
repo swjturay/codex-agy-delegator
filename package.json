@@ -2,8 +2,10 @@
   "name": "codex-agy-delegator",
   "version": "0.1.0",
   "description": "MCP Server for Codex to delegate tasks to Antigravity CLI",
-  "main": "dist/index.js",
+  "main": "dist/src/index.js",
+  "type": "module",
   "scripts": {
+    "start": "node dist/src/index.js",
     "build": "tsc",
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",

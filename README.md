@@ -85,7 +85,7 @@ Add this to your `mcp.toml` or `config.json` manually:
 ```toml
 [mcp_servers.codex-agy-delegator]
 command = "node"
-args = ["/absolute/path/to/your/repo/codex-agy-delegator/dist/index.js"]
+args = ["/absolute/path/to/your/repo/codex-agy-delegator/dist/src/index.js"]
 ```
 </details>
 

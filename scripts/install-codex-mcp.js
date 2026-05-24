@@ -2,7 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 
-const distIndex = path.resolve(__dirname, '..', 'dist', 'index.js');
+const distIndex = path.resolve(__dirname, '..', 'dist', 'src', 'index.js');
 const tomlConfig = `\n[mcp_servers.codex-agy-delegator]
 command = "node"
 args = ["${distIndex}"]\n`;

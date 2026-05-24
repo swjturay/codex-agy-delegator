@@ -7,9 +7,9 @@ import {
   McpError,
 } from "@modelcontextprotocol/sdk/types.js";
 
-import { delegateToAgy, DelegateArgs } from "./tools/delegateToAgy.js";
-import { getAgyRunReport } from "./tools/getAgyRunReport.js";
-import { cleanupAgyRun } from "./tools/cleanupAgyRun.js";
+import { delegateToAgy, DelegateArgs } from "./delegateToAgy.js";
+import { getAgyRunReport } from "./getAgyRunReport.js";
+import { cleanupAgyRun } from "./cleanupAgyRun.js";
 
 const server = new Server(
   {

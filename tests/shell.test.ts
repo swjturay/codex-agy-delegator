@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert';
-import { tailString } from '../tools/shell.js';
+import { tailString } from '../src/shell.js';
 
 test('tailString should return full string if within maxLines', () => {
   const input = 'line 1\nline 2\nline 3';

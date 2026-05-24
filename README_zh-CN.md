@@ -85,7 +85,7 @@ npm run install:codex
 ```toml
 [mcp_servers.codex-agy-delegator]
 command = "node"
-args = ["/你本地的绝对路径/codex-agy-delegator/dist/index.js"]
+args = ["/你本地的绝对路径/codex-agy-delegator/dist/src/index.js"]
 ```
 </details>
 
