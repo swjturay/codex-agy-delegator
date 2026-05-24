@@ -41,6 +41,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             useWorktree: { type: "boolean", description: "Whether to use a git worktree to avoid polluting the main repo." },
             branchPrefix: { type: "string", description: "Prefix for the temporary branch." },
             dryRun: { type: "boolean", description: "If true, skips running agy." },
+            responseMode: { type: "string", enum: ["compact", "standard", "full"], description: "How much data to return to Codex. Defaults to compact." },
+            maxFiles: { type: "number", description: "Maximum changed files to include in compact responses." },
+            maxTestTailLines: { type: "number", description: "Maximum stdout/stderr tail lines to keep for each test." },
+            includeDiffStat: { type: "boolean", description: "Whether to include a capped diff stat in compact responses." },
           },
           required: ["repoPath", "task"],
         },
@@ -53,6 +57,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {
             repoPath: { type: "string", description: "Absolute path to the repository." },
             runId: { type: "string", description: "The run ID to fetch." },
+            detail: { type: "string", enum: ["compact", "full", "logs", "diffStat", "patch"], description: "Which report detail to retrieve. Defaults to compact." },
+            maxBytes: { type: "number", description: "Maximum bytes to return for logs, diff stat, or patch details." },
           },
           required: ["repoPath", "runId"],
         },
@@ -97,7 +103,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (!args.repoPath || !args.runId) {
           throw new McpError(ErrorCode.InvalidParams, "repoPath and runId are required");
         }
-        const result = await getAgyRunReport(args.repoPath, args.runId);
+        const result = await getAgyRunReport(args.repoPath, args.runId, {
+          detail: args.detail,
+          maxBytes: args.maxBytes,
+        });
         return {
           content: [
             {

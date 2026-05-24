@@ -3,8 +3,11 @@ import * as path from 'path';
 import { getGitRoot, hasUncommittedChanges, createWorktree, getDiffFiles, getDiffStat, getDiff } from './git.js';
 import { runCommand, tailString } from './shell.js';
 import { parseAgyReport } from './report.js';
+import { findFilesOutsideRules, findRuleViolations } from './pathRules.js';
 import { spawn } from 'child_process';
-import { existsSync } from 'fs';
+import { createWriteStream, existsSync } from 'fs';
+
+export type ResponseMode = 'compact' | 'standard' | 'full';
 
 export interface DelegateArgs {
   repoPath: string;
@@ -16,6 +19,77 @@ export interface DelegateArgs {
   useWorktree?: boolean;
   branchPrefix?: string;
   dryRun?: boolean;
+  responseMode?: ResponseMode;
+  maxFiles?: number;
+  maxTestTailLines?: number;
+  includeDiffStat?: boolean;
+}
+
+interface TestResult {
+  command: string;
+  exitCode: number;
+  stdoutTail: string;
+  stderrTail: string;
+}
+
+function capString(value: string, maxChars: number): string {
+  if (value.length <= maxChars) return value;
+  return `${value.slice(0, maxChars)}\n... (${value.length - maxChars} chars omitted) ...`;
+}
+
+function compactChangedFiles(files: string[], maxFiles: number) {
+  return {
+    count: files.length,
+    files: files.slice(0, maxFiles),
+    omitted: Math.max(0, files.length - maxFiles),
+  };
+}
+
+function compactTests(tests: TestResult[], includeFailureTails: boolean) {
+  const failed = tests.filter((test) => test.exitCode !== 0);
+  return {
+    passed: failed.length === 0,
+    commands: tests.map((test) => ({ command: test.command, exitCode: test.exitCode })),
+    failed: failed.map((test) => ({
+      command: test.command,
+      exitCode: test.exitCode,
+      ...(includeFailureTails ? { stdoutTail: test.stdoutTail, stderrTail: test.stderrTail } : {}),
+    })),
+  };
+}
+
+function formatReport(reportData: any, args: DelegateArgs) {
+  const responseMode = args.responseMode ?? 'compact';
+  if (responseMode === 'full') return reportData;
+
+  const maxFiles = args.maxFiles ?? 30;
+  const compactReport: any = {
+    status: reportData.status,
+    runId: reportData.runId,
+    branch: reportData.branch,
+    worktreePath: reportData.worktreePath,
+    changed: compactChangedFiles(reportData.changedFiles ?? [], maxFiles),
+    tests: compactTests(reportData.tests ?? [], responseMode !== 'compact'),
+    summary: reportData.summary ?? reportData.error ?? '',
+    riskNotes: reportData.riskNotes ?? [],
+    reviewFocus: reportData.reviewFocus ?? [],
+    assumptions: reportData.assumptions ?? [],
+    rawReportPath: reportData.rawReportPath,
+  };
+
+  if (reportData.error) compactReport.error = reportData.error;
+  if (reportData.violatedFiles?.length > 0) compactReport.violatedFiles = reportData.violatedFiles;
+  if (reportData.outsideAllowedFiles?.length > 0) compactReport.outsideAllowedFiles = reportData.outsideAllowedFiles;
+
+  if (args.includeDiffStat || responseMode === 'standard') {
+    compactReport.diffStat = capString(reportData.diffStat ?? '', 4000);
+  }
+
+  if (reportData.agyExitCode !== 0) {
+    compactReport.agyExitCode = reportData.agyExitCode;
+  }
+
+  return compactReport;
 }
 
 export async function delegateToAgy(args: DelegateArgs) {
@@ -29,6 +103,7 @@ export async function delegateToAgy(args: DelegateArgs) {
     useWorktree = true,
     branchPrefix = 'agent/agy-task',
     dryRun = false,
+    maxTestTailLines,
   } = args;
 
   // Validate repo
@@ -71,8 +146,11 @@ ${allowedFiles.length > 0 ? `Allowed Files:\n${allowedFiles.map(f => `- ${f}`).j
 ${forbiddenFiles.length > 0 ? `Forbidden Files:\n${forbiddenFiles.map(f => `- ${f}`).join('\n')}\n` : ''}
 
 # Worker Instructions
-You are an agy worker. You MUST output a JSON block at the very end of your final response containing your report, enclosed in \`\`\`json.
-Your JSON must follow the AgyWorkerReport format. Do not violate forbidden files.
+You are an agy worker. Do minimal precise edits and obey the file constraints.
+End your final response with only this JSON block:
+\`\`\`json
+{"summary":"","risk_notes":[],"review_focus":[],"assumptions":[]}
+\`\`\`
 `;
   await fs.writeFile(taskMdPath, taskContent, 'utf-8');
 
@@ -86,21 +164,14 @@ Your JSON must follow the AgyWorkerReport format. Do not violate forbidden files
     return { status: 'success', note: 'Dry run completed', targetCwd, taskMdPath };
   }
 
-  // Execute agy (we simulate this via spawn since it's a CLI that takes instructions)
-  // Since we can't reliably inject directly into stdin for interactive CLI, we will run `agy --task-file` or similar.
-  // Assuming `agy --instruction "$(cat task.md)"` or just `agy "instruction"`
-  // For safety we pass it as a single argument.
-  
-  const agyArgs = ['--instruction', taskContent]; // Depending on actual Antigravity CLI args. If it doesn't support --instruction, we might just pass it as positional. Let's use generic positional or a safe invocation.
-  // If agy just takes prompt as positional arguments:
-  
+  // Execute agy and persist raw logs for optional follow-up inspection.
   const agyLogPath = path.join(runDir, 'agy.stdout.log');
   const agyErrPath = path.join(runDir, 'agy.stderr.log');
   
   const agyPromise = new Promise<{code: number | null}>((resolve) => {
     const proc = spawn('agy', ['--print', taskContent], { cwd: targetCwd, shell: false });
-    const outStream = require('fs').createWriteStream(agyLogPath);
-    const errStream = require('fs').createWriteStream(agyErrPath);
+    const outStream = createWriteStream(agyLogPath);
+    const errStream = createWriteStream(agyErrPath);
     
     proc.stdout.pipe(outStream);
     proc.stderr.pipe(errStream);
@@ -117,33 +188,31 @@ Your JSON must follow the AgyWorkerReport format. Do not violate forbidden files
 
   const agyResult = await agyPromise;
   
-  // Verify changed files against forbidden files
+  // Verify changed files against allowed and forbidden file rules.
   const changedFiles = await getDiffFiles(targetCwd);
-  let blockedByForbidden = false;
-  const violatedFiles: string[] = [];
-  
-  for (const f of changedFiles) {
-    for (const forbidden of forbiddenFiles) {
-      if (f.includes(forbidden)) { // simple matching for now
-        blockedByForbidden = true;
-        violatedFiles.push(f);
-      }
-    }
-  }
+  const violatedFiles = findRuleViolations(changedFiles, forbiddenFiles, true);
+  const outsideAllowedFiles = findFilesOutsideRules(changedFiles, allowedFiles);
 
-  if (blockedByForbidden) {
-    return {
+  if (violatedFiles.length > 0 || outsideAllowedFiles.length > 0) {
+    const blockedReport = {
       status: 'blocked',
-      error: 'Worker modified forbidden files',
+      runId,
+      branch: branchName,
+      worktreePath,
+      error: violatedFiles.length > 0 ? 'Worker modified forbidden files' : 'Worker modified files outside allowed files',
       violatedFiles,
+      outsideAllowedFiles,
       changedFiles,
+      rawReportPath: runDir,
     };
+    await fs.writeFile(path.join(runDir, 'report.json'), JSON.stringify(blockedReport, null, 2), 'utf-8');
+    return formatReport(blockedReport, args);
   }
 
   // Run tests
   const tests = [];
   let testsFailed = false;
-  let testsToRun = testCommands;
+  let testsToRun = [...testCommands];
   if (testsToRun.length === 0) {
     if (existsSync(path.join(targetCwd, 'package.json'))) {
       const pkg = JSON.parse(await fs.readFile(path.join(targetCwd, 'package.json'), 'utf-8'));
@@ -155,11 +224,12 @@ Your JSON must follow the AgyWorkerReport format. Do not violate forbidden files
   for (const cmd of testsToRun) {
     const parts = cmd.split(' ');
     const { exitCode, stdout, stderr } = await runCommand(parts[0], parts.slice(1), targetCwd);
+    const tailLines = maxTestTailLines ?? (exitCode === 0 ? 0 : 10);
     tests.push({
       command: cmd,
       exitCode,
-      stdoutTail: tailString(stdout, 20),
-      stderrTail: tailString(stderr, 20),
+      stdoutTail: tailLines > 0 ? tailString(stdout, tailLines) : '',
+      stderrTail: tailLines > 0 ? tailString(stderr, tailLines) : '',
     });
     if (exitCode !== 0) testsFailed = true;
   }
@@ -179,19 +249,23 @@ Your JSON must follow the AgyWorkerReport format. Do not violate forbidden files
   }
 
   const reportData = {
-    status: testsFailed ? 'needs_review' : 'success',
+    status: testsFailed || agyResult.code !== 0 || !parsedReport ? 'needs_review' : 'success',
+    runId,
     branch: branchName,
     worktreePath,
     changedFiles,
     diffStat,
     diffSummary: parsedReport?.implementation_summary || diffSummary,
+    summary: parsedReport?.summary || parsedReport?.implementation_summary || diffSummary,
     tests,
     riskNotes: parsedReport?.risk_notes || [],
     reviewFocus: parsedReport?.review_focus || [],
+    assumptions: parsedReport?.assumptions || [],
+    agyExitCode: agyResult.code,
     rawReportPath: runDir
   };
 
   await fs.writeFile(path.join(runDir, 'report.json'), JSON.stringify(reportData, null, 2), 'utf-8');
 
-  return reportData;
+  return formatReport(reportData, args);
 }

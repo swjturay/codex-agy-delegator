@@ -32,6 +32,21 @@ test('parseAgyReport should provide defaults for missing fields', () => {
   const parsed = parseAgyReport(emptyJson);
   assert.ok(parsed !== null);
   assert.deepStrictEqual(parsed.changed_files, []);
-  assert.strictEqual(parsed.implementation_summary, '');
+  assert.strictEqual(parsed.summary, '');
   assert.deepStrictEqual(parsed.risk_notes, []);
+});
+
+test('parseAgyReport should support compact worker reports', () => {
+  const compactJson = `
+  {
+    "summary": "Done compactly",
+    "risk_notes": [],
+    "review_focus": ["src/index.ts"],
+    "assumptions": []
+  }`;
+
+  const parsed = parseAgyReport(compactJson);
+  assert.ok(parsed !== null);
+  assert.strictEqual(parsed.summary, 'Done compactly');
+  assert.deepStrictEqual(parsed.review_focus, ['src/index.ts']);
 });

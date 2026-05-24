@@ -6,9 +6,9 @@ This skill teaches Codex how to efficiently review the results of tasks delegate
 ## Review Sequence
 When the MCP `delegate_to_agy` tool returns a report, follow this order of review:
 1. **Check Status:** Look at the `status` field (`success`, `failed`, `blocked`, `needs_review`).
-2. **Review Changed Files:** Read the `changedFiles` array to ensure no unexpected files were touched.
-3. **Check Diff Stat:** Read `diffStat` for a high-level overview of line additions/deletions.
-4. **Check Tests:** Look at the `tests` results to ensure all tests passed (`exitCode === 0`).
+2. **Review Changed Files:** Read `changed.count` and the capped `changed.files` list. Fetch the full report only when the cap omitted files or something looks unexpected.
+3. **Check Diff Stat:** Only request `get_agy_run_report` with `detail: "diffStat"` when the compact summary is insufficient.
+4. **Check Tests:** Look at `tests.passed` and failed commands. Request logs only for failures.
 5. **Check Risk Notes:** Read the `riskNotes` provided by the worker.
 6. **Focus Review:** Only read the actual diff or open files mentioned in `reviewFocus`. Do not indiscriminately read all changed files unless necessary.
 
