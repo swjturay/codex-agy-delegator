@@ -86,9 +86,9 @@ command = "node"
 args = ["${distIndex}"]\n`;
 
 const potentialPaths = [
-  path.join(homeDir, '.codex', 'mcp.toml'),
-  path.join(homeDir, '.config', 'codex', 'mcp.toml'),
-  path.join(homeDir, 'Library', 'Application Support', 'codex', 'mcp.toml')
+  path.join(homeDir, '.codex', 'config.toml'),
+  path.join(homeDir, '.config', 'codex', 'config.toml'),
+  path.join(homeDir, 'Library', 'Application Support', 'codex', 'config.toml')
 ];
 
 let mcpAppended = false;
@@ -112,7 +112,7 @@ for (const p of potentialPaths) {
 }
 
 if (!mcpAppended) {
-  console.log("⚠️  Could not automatically find your Codex mcp.toml file.");
+  console.log("⚠️  Could not automatically find your Codex config.toml file.");
   console.log("Please copy the configuration block below and paste it into your Codex MCP configuration file manually:\n");
   console.log(tomlConfig);
 }
