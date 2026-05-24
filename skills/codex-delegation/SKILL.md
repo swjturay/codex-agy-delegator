@@ -29,7 +29,31 @@ Before delegating, you must synthesize a "narrow task card". The task must expli
 - **Output Format:** Strict JSON report format (the MCP server enforces this).
 
 ### Instructions for Codex
-1. Do not provide the entire project context to the worker. Give only the necessary context in the task description.
-2. Call the `delegate_to_agy` MCP tool.
-3. Review the returned structured report: `changedFiles`, `diffStat`, `diffSummary`, `tests`, `riskNotes`, and `reviewFocus`.
-4. If the worker fails or returns incomplete results, do a minimal necessary review based on the `reviewFocus`. Do not reread the entire project.
+1. **Chain of Thought:** Before calling the tool, silently think about the architecture and which files should be touched.
+2. **Context Minimization:** Do not provide the entire project context to the worker. Give only the necessary context in the task description.
+3. **Trigger:** Call the `delegate_to_agy` MCP tool.
+4. **Post-Delegation Review:** Review the returned structured report (`changedFiles`, `tests`, `riskNotes`, `reviewFocus`). If the worker fails or returns incomplete results, do a minimal necessary review based on `reviewFocus`. Do not reread the entire project.
+
+## 🌟 Examples
+
+### Good Delegation
+```json
+{
+  "repoPath": "/workspace/my-app",
+  "task": "Refactor all `interface` definitions to `type` aliases in the models directory. Ensure they are exported.",
+  "allowedFiles": ["src/models/*.ts"],
+  "forbiddenFiles": ["src/models/legacy/*.ts"],
+  "testCommands": ["npm run typecheck"],
+  "useWorktree": true
+}
+```
+
+### Bad Delegation (Too Vague & Broad)
+```json
+{
+  "repoPath": "/workspace/my-app",
+  "task": "Fix the bugs and make the code better.",
+  "allowedFiles": ["*"],
+  "useWorktree": false
+}
+```
