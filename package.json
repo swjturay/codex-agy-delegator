@@ -8,7 +8,8 @@
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
     "selfcheck": "node dist/index.js --help || echo 'Compiled and running'",
-    "test": "npm run build && npm run selfcheck"
+    "test": "npm run build && npm run selfcheck",
+    "install:codex": "node scripts/install-codex-mcp.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.1"

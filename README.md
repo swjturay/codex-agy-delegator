@@ -38,13 +38,19 @@ npm run selfcheck
 ```
 
 ## 5. Codex MCP Configuration
-To allow Codex to use this server, you must add it to your Codex configuration file (usually `mcp.toml` or `config.json`, depending on your Codex setup).
+We have provided an automated script to help you configure Codex quickly. Simply run:
 
-**Example `mcp.toml`:**
+```bash
+npm run install:codex
+```
+
+This script will generate the absolute path for your local setup and attempt to auto-append it to common Codex MCP configuration files (like `~/.codex/mcp.toml`). If it cannot find the file automatically, it will print the configuration block for you to copy and paste manually.
+
+**Example of the generated `mcp.toml` block:**
 ```toml
 [mcp_servers.codex-agy-delegator]
 command = "node"
-# VERY IMPORTANT: Adjust this path to match your absolute local path!
+# The script will automatically resolve this to your real absolute path!
 args = ["/absolute/path/to/your/repo/tools/codex-agy-delegator/dist/index.js"]
 ```
 
