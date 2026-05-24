@@ -43,6 +43,14 @@ Instead of Codex spending huge context windows performing mechanical changes or 
    - **Codex Skills:** Teaches Codex *when* to delegate and *how* to review the JSON report without falling back to full-project scanning.
    - **Agy Skill:** Restricts the Antigravity worker to boundaries (`allowedFiles`, `forbiddenFiles`) and enforces strict JSON output.
 
+## 📋 Prerequisites
+Before installing, ensure your environment is prepared:
+1. **Node.js & TypeScript**: Node version 18+ is required.
+2. **Antigravity CLI (`agy`)**: The MCP server relies on the local Antigravity CLI to execute delegated tasks.
+   - You must have `agy` installed and globally accessible in your `$PATH`.
+   - You must **complete authentication and setup for `agy`** beforehand. The CLI must be able to run prompts non-interactively without blocking on login prompts.
+3. **Codex**: A local installation of Codex or a compatible MCP client.
+
 ## 💻 Installation
 
 Ensure you have Node.js and TypeScript installed on your system.

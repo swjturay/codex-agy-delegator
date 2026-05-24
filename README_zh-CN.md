@@ -43,6 +43,14 @@
    - **Codex Skills:** 教授 Codex *何时* 应该委派任务，以及 *如何* 在不重新阅读全库的前提下审查 JSON 报告。
    - **Agy Skill:** 将 Antigravity 代理约束为 Worker 角色，强制其遵循 `allowedFiles` 和 `forbiddenFiles`，并严格输出 JSON。
 
+## 📋 前置准备
+在安装之前，请确保您的环境已完成以下准备：
+1. **Node.js 与 TypeScript**：需要 Node 18 或更高版本。
+2. **Antigravity CLI (`agy`)**：MCP Server 依赖本地的 Antigravity CLI 来执行被委派的代码任务。
+   - 必须全局安装 `agy`，并确保可在命令行的 `$PATH` 中直接调用。
+   - 必须**提前完成 `agy` 的登录和认证配置**。确保 CLI 在后台非交互式运行时，不会因为缺少认证凭证或弹窗而被阻塞。
+3. **Codex**：本地已安装 Codex 或支持 MCP 协议的客户端。
+
 ## 💻 安装指南
 
 在安装前，请确保系统已配置 Node.js 和 TypeScript。
