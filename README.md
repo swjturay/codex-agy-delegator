@@ -38,7 +38,7 @@ Instead of Codex spending huge context windows performing mechanical changes or 
 - **Role Separation:** Codex acts purely as the Reviewer and Architect, while Agy does the heavy lifting.
 
 ## 🛠 How It Works
-1. **MCP Server:** The execution layer. It manages git worktrees, creates instructions (`task.md`), spawns the `agy` worker, runs tests, and parses the structured report.
+1. **MCP Server:** The execution layer. It manages git worktrees, creates instructions (`task.md`), starts delegated runs, and persists structured reports for polling.
 2. **Skills (Markdown rules):** The behavioral layer.
    - **Codex Skills:** Teaches Codex *when* to delegate and *how* to review the JSON report without falling back to full-project scanning.
    - **Agy Skill:** Restricts the Antigravity worker to boundaries (`allowedFiles`, `forbiddenFiles`) and enforces strict JSON output.
@@ -49,6 +49,7 @@ Before installing, ensure your environment is prepared:
 2. **Antigravity CLI (`agy`)**: The MCP server relies on the local Antigravity CLI to execute delegated tasks.
    - You must have `agy` installed and globally accessible in your `$PATH`.
    - You must **complete authentication and setup for `agy`** beforehand. The CLI must be able to run prompts non-interactively without blocking on login prompts.
+   - On Windows, the delegator uses a pseudo terminal bridge instead of a plain stdout pipe because `agy --print` may not emit usable piped output. This improves compatibility, but the upstream CLI can still require an interactive login or time out without producing a final JSON block.
 3. **Codex**: A local installation of Codex or a compatible MCP client.
 
 ## ⚡ Quick Start (One-Line Installation)
@@ -82,7 +83,7 @@ Add this to your `mcp.toml` or `config.json` manually:
 ```toml
 [mcp_servers.codex-agy-delegator]
 command = "node"
-args = ["/absolute/path/to/your/repo/codex-agy-delegator/dist/src/index.js"]
+args = ["/absolute/path/to/your/repo/codex-agy-delegator/dist/index.js"]
 ```
 
 ### Skills Installation
@@ -105,10 +106,11 @@ args = ["/absolute/path/to/your/repo/codex-agy-delegator/dist/src/index.js"]
    }
    ```
 3. **MCP Server Executes:** 
-   Creates a `.agy-worktrees` branch -> Spawns `agy` -> Runs tests -> Extracts the `AgyWorkerReport` JSON.
-4. **Codex Reviews:** Codex reads the returned, condensed JSON. Tests passed, no risk notes. Codex replies: *"The refactor was completed successfully by the worker. Tests passed. You can merge the worktree branch."*
+   Creates a `.agy-worktrees` branch -> Returns a `runId` immediately -> Runs `agy` in the background -> Persists progress to `report.json`.
+4. **Codex Reviews:** Codex polls `get_agy_run_report` until completion, then reads the condensed JSON. Tests passed, no risk notes. Codex replies: *"The refactor was completed successfully by the worker. Tests passed. You can merge the worktree branch."*
 
 ## 🛡 Security & Isolation
 - **No auto-commit/push:** Leaves changes in a safe worktree.
 - **Forbidden files enforcement:** If the worker touches restricted files, the MCP server flags the run as `blocked`.
 - **Timeouts:** Agy processes are strictly killed after timeouts to prevent runaway processes.
+- **Recoverability:** In-progress runs write an initial `report.json`, so status polling and cleanup work before the final report is ready.

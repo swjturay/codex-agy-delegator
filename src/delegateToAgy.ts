@@ -1,11 +1,12 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { getGitRoot, hasUncommittedChanges, createWorktree, getDiffFiles, getDiffStat, getDiff } from './git.js';
-import { runCommand, tailString } from './shell.js';
-import { parseAgyReport } from './report.js';
-import { findFilesOutsideRules, findRuleViolations } from './pathRules.js';
+import { fileURLToPath } from 'url';
+import { getGitRoot, hasUncommittedChanges, createWorktree, removeWorktree } from './git.js';
+import { runCommand } from './shell.js';
+import { executeAgyRun } from './runAgyTask.js';
+import { createInitialRunReport, nowIso, readRunReport, type RunConfig, type RunReport, type TestResult, updateRunReport, writeRunConfig, writeRunReport } from './runArtifacts.js';
 import { spawn } from 'child_process';
-import { createWriteStream, existsSync } from 'fs';
+import { existsSync, openSync } from 'fs';
 
 export type ResponseMode = 'compact' | 'standard' | 'full';
 
@@ -23,13 +24,7 @@ export interface DelegateArgs {
   maxFiles?: number;
   maxTestTailLines?: number;
   includeDiffStat?: boolean;
-}
-
-interface TestResult {
-  command: string;
-  exitCode: number;
-  stdoutTail: string;
-  stderrTail: string;
+  waitForCompletion?: boolean;
 }
 
 function capString(value: string, maxChars: number): string {
@@ -75,6 +70,10 @@ function formatReport(reportData: any, args: DelegateArgs) {
     reviewFocus: reportData.reviewFocus ?? [],
     assumptions: reportData.assumptions ?? [],
     rawReportPath: reportData.rawReportPath,
+    currentPhase: reportData.currentPhase,
+    startedAt: reportData.startedAt,
+    updatedAt: reportData.updatedAt,
+    finishedAt: reportData.finishedAt,
   };
 
   if (reportData.error) compactReport.error = reportData.error;
@@ -85,11 +84,69 @@ function formatReport(reportData: any, args: DelegateArgs) {
     compactReport.diffStat = capString(reportData.diffStat ?? '', 4000);
   }
 
-  if (reportData.agyExitCode !== 0) {
+  if (typeof reportData.agyExitCode === 'number' && reportData.agyExitCode !== 0) {
     compactReport.agyExitCode = reportData.agyExitCode;
   }
 
   return compactReport;
+}
+
+function buildTaskContent(task: string, allowedFiles: string[], forbiddenFiles: string[]) {
+  return `# Task
+${task}
+
+# Constraints
+${allowedFiles.length > 0 ? `Allowed Files:\n${allowedFiles.map(f => `- ${f}`).join('\n')}\n` : ''}
+${forbiddenFiles.length > 0 ? `Forbidden Files:\n${forbiddenFiles.map(f => `- ${f}`).join('\n')}\n` : ''}
+
+# Worker Instructions
+You are an agy worker. Do minimal precise edits and obey the file constraints.
+End your final response with only this JSON block:
+\`\`\`json
+{"summary":"","risk_notes":[],"review_focus":[],"assumptions":[]}
+\`\`\`
+`;
+}
+
+function resolveBackgroundEntryScript() {
+  const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+  const candidates = [
+    process.argv[1],
+    path.join(process.cwd(), 'dist', 'index.js'),
+    path.join(moduleDir, 'index.js'),
+  ].filter((value): value is string => Boolean(value) && value !== '-');
+
+  return candidates.find((candidate) => existsSync(candidate)) ?? null;
+}
+
+function spawnBackgroundRunner(runDir: string, cwd: string) {
+  const entryScript = resolveBackgroundEntryScript();
+  if (!entryScript) {
+    throw new Error('Cannot determine the MCP entry script for background execution.');
+  }
+
+  const runnerStdoutPath = path.join(runDir, 'runner.stdout.log');
+  const runnerStderrPath = path.join(runDir, 'runner.stderr.log');
+  const childExecArgv = entryScript.endsWith('.js') ? [] : process.execArgv;
+
+  const child = spawn(
+    process.execPath,
+    [...childExecArgv, entryScript, '--run-agy-task', runDir],
+    {
+      cwd,
+      detached: true,
+      stdio: ['ignore', openSync(runnerStdoutPath, 'a'), openSync(runnerStderrPath, 'a')],
+      env: process.env,
+      windowsHide: true,
+    },
+  );
+
+  child.unref();
+  if (!child.pid) {
+    throw new Error('Failed to start the background runner.');
+  }
+
+  return child.pid;
 }
 
 export async function delegateToAgy(args: DelegateArgs) {
@@ -104,6 +161,7 @@ export async function delegateToAgy(args: DelegateArgs) {
     branchPrefix = 'agent/agy-task',
     dryRun = false,
     maxTestTailLines,
+    waitForCompletion = false,
   } = args;
 
   // Validate repo
@@ -136,22 +194,8 @@ export async function delegateToAgy(args: DelegateArgs) {
     }
   }
 
-  // Create task.md
+  const taskContent = buildTaskContent(task, allowedFiles, forbiddenFiles);
   const taskMdPath = path.join(runDir, 'task.md');
-  const taskContent = `# Task
-${task}
-
-# Constraints
-${allowedFiles.length > 0 ? `Allowed Files:\n${allowedFiles.map(f => `- ${f}`).join('\n')}\n` : ''}
-${forbiddenFiles.length > 0 ? `Forbidden Files:\n${forbiddenFiles.map(f => `- ${f}`).join('\n')}\n` : ''}
-
-# Worker Instructions
-You are an agy worker. Do minimal precise edits and obey the file constraints.
-End your final response with only this JSON block:
-\`\`\`json
-{"summary":"","risk_notes":[],"review_focus":[],"assumptions":[]}
-\`\`\`
-`;
   await fs.writeFile(taskMdPath, taskContent, 'utf-8');
 
   // Check if agy exists in PATH, or try a default global install if agy not found
@@ -164,108 +208,73 @@ End your final response with only this JSON block:
     return { status: 'success', note: 'Dry run completed', targetCwd, taskMdPath };
   }
 
-  // Execute agy and persist raw logs for optional follow-up inspection.
-  const agyLogPath = path.join(runDir, 'agy.stdout.log');
-  const agyErrPath = path.join(runDir, 'agy.stderr.log');
-  
-  const agyPromise = new Promise<{code: number | null}>((resolve) => {
-    const proc = spawn('agy', ['--print', taskContent], { cwd: targetCwd, shell: false });
-    const outStream = createWriteStream(agyLogPath);
-    const errStream = createWriteStream(agyErrPath);
-    
-    proc.stdout.pipe(outStream);
-    proc.stderr.pipe(errStream);
-    
-    let timer = setTimeout(() => {
-      proc.kill('SIGKILL');
-    }, timeoutMs);
-    
-    proc.on('close', (code) => {
-      clearTimeout(timer);
-      resolve({ code });
+  const runConfig: RunConfig = {
+    runId,
+    root,
+    runDir,
+    targetCwd,
+    branchName,
+    worktreePath,
+    taskContent,
+    allowedFiles,
+    forbiddenFiles,
+    testCommands,
+    timeoutMs,
+    maxTestTailLines,
+  };
+
+  await writeRunConfig(runDir, runConfig);
+  await writeRunReport(runDir, createInitialRunReport(runConfig));
+
+  if (waitForCompletion) {
+    await updateRunReport(runDir, {
+      status: 'running',
+      currentPhase: 'starting',
+      summary: 'Starting inline agy run.',
+      updatedAt: nowIso(),
     });
-  });
-
-  const agyResult = await agyPromise;
-  
-  // Verify changed files against allowed and forbidden file rules.
-  const changedFiles = await getDiffFiles(targetCwd);
-  const violatedFiles = findRuleViolations(changedFiles, forbiddenFiles, true);
-  const outsideAllowedFiles = findFilesOutsideRules(changedFiles, allowedFiles);
-
-  if (violatedFiles.length > 0 || outsideAllowedFiles.length > 0) {
-    const blockedReport = {
-      status: 'blocked',
+    await executeAgyRun(runDir);
+    const finalReport = await readRunReport(runDir);
+    return formatReport(finalReport ?? {
+      status: 'failed',
       runId,
       branch: branchName,
       worktreePath,
-      error: violatedFiles.length > 0 ? 'Worker modified forbidden files' : 'Worker modified files outside allowed files',
-      violatedFiles,
-      outsideAllowedFiles,
-      changedFiles,
+      changedFiles: [],
+      summary: 'Run report was not written.',
+      tests: [],
+      riskNotes: [],
+      reviewFocus: [],
+      assumptions: [],
       rawReportPath: runDir,
+      agyExitCode: null,
+      backgroundPid: null,
+      currentPhase: 'failed',
+      startedAt: nowIso(),
+      updatedAt: nowIso(),
+      finishedAt: nowIso(),
+    }, args);
+  }
+
+  try {
+    const backgroundPid = spawnBackgroundRunner(runDir, root);
+    const startedReport: Partial<RunReport> = {
+      status: 'running',
+      backgroundPid,
+      currentPhase: 'queued',
+      summary: 'Run started in the background. Poll get_agy_run_report for progress.',
+      updatedAt: nowIso(),
     };
-    await fs.writeFile(path.join(runDir, 'report.json'), JSON.stringify(blockedReport, null, 2), 'utf-8');
-    return formatReport(blockedReport, args);
-  }
-
-  // Run tests
-  const tests = [];
-  let testsFailed = false;
-  let testsToRun = [...testCommands];
-  if (testsToRun.length === 0) {
-    if (existsSync(path.join(targetCwd, 'package.json'))) {
-      const pkg = JSON.parse(await fs.readFile(path.join(targetCwd, 'package.json'), 'utf-8'));
-      if (pkg.scripts?.typecheck) testsToRun.push('npm run typecheck');
-      if (pkg.scripts?.test) testsToRun.push('npm test');
+    const reportData = await updateRunReport(runDir, startedReport);
+    return formatReport(reportData, args);
+  } catch (error: any) {
+    if (worktreePath) {
+      try {
+        await removeWorktree(root, worktreePath);
+      } catch {
+        // Keep the original launch error as the primary failure.
+      }
     }
+    return { status: 'failed', error: error?.message || 'Failed to start the background runner.' };
   }
-
-  for (const cmd of testsToRun) {
-    const parts = cmd.split(' ');
-    const { exitCode, stdout, stderr } = await runCommand(parts[0], parts.slice(1), targetCwd);
-    const tailLines = maxTestTailLines ?? (exitCode === 0 ? 0 : 10);
-    tests.push({
-      command: cmd,
-      exitCode,
-      stdoutTail: tailLines > 0 ? tailString(stdout, tailLines) : '',
-      stderrTail: tailLines > 0 ? tailString(stderr, tailLines) : '',
-    });
-    if (exitCode !== 0) testsFailed = true;
-  }
-
-  const diffStat = await getDiffStat(targetCwd);
-  const diffSummary = `Changed files: ${changedFiles.length}\nStat:\n${diffStat}`;
-  
-  await fs.writeFile(path.join(runDir, 'diff.stat.txt'), diffStat, 'utf-8');
-  await fs.writeFile(path.join(runDir, 'diff.patch'), await getDiff(targetCwd), 'utf-8');
-
-  // Attempt to parse agy output for JSON block
-  const agyOutput = await fs.readFile(agyLogPath, 'utf-8');
-  const jsonMatch = agyOutput.match(/\`\`\`json\s*(\{[\s\S]*?\})\s*\`\`\`/);
-  let parsedReport = null;
-  if (jsonMatch) {
-    parsedReport = parseAgyReport(jsonMatch[1]);
-  }
-
-  const reportData = {
-    status: testsFailed || agyResult.code !== 0 || !parsedReport ? 'needs_review' : 'success',
-    runId,
-    branch: branchName,
-    worktreePath,
-    changedFiles,
-    diffStat,
-    diffSummary: parsedReport?.implementation_summary || diffSummary,
-    summary: parsedReport?.summary || parsedReport?.implementation_summary || diffSummary,
-    tests,
-    riskNotes: parsedReport?.risk_notes || [],
-    reviewFocus: parsedReport?.review_focus || [],
-    assumptions: parsedReport?.assumptions || [],
-    agyExitCode: agyResult.code,
-    rawReportPath: runDir
-  };
-
-  await fs.writeFile(path.join(runDir, 'report.json'), JSON.stringify(reportData, null, 2), 'utf-8');
-
-  return formatReport(reportData, args);
 }

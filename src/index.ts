@@ -10,6 +10,7 @@ import {
 import { delegateToAgy, DelegateArgs } from "./delegateToAgy.js";
 import { getAgyRunReport } from "./getAgyRunReport.js";
 import { cleanupAgyRun } from "./cleanupAgyRun.js";
+import { executeAgyRun } from "./runAgyTask.js";
 
 const server = new Server(
   {
@@ -45,6 +46,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             maxFiles: { type: "number", description: "Maximum changed files to include in compact responses." },
             maxTestTailLines: { type: "number", description: "Maximum stdout/stderr tail lines to keep for each test." },
             includeDiffStat: { type: "boolean", description: "Whether to include a capped diff stat in compact responses." },
+            waitForCompletion: { type: "boolean", description: "If true, wait for the delegated run to finish before returning. Defaults to false." },
           },
           required: ["repoPath", "task"],
         },
@@ -148,6 +150,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 });
 
 async function main() {
+  if (process.argv[2] === '--run-agy-task') {
+    const runDir = process.argv[3];
+    if (!runDir) {
+      throw new Error('Missing run directory for background agy task.');
+    }
+    await executeAgyRun(runDir);
+    return;
+  }
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error("codex-agy-delegator MCP server running on stdio");

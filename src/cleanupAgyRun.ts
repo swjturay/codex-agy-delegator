@@ -2,6 +2,8 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { getGitRoot, removeWorktree } from './git.js';
 import { existsSync } from 'fs';
+import { killProcessTree } from './shell.js';
+import { readRunConfig, readRunReport, writeRunReport } from './runArtifacts.js';
 
 export async function cleanupAgyRun(repoPath: string, runId: string, removeWorktreeFlag: boolean = false) {
   const root = await getGitRoot(repoPath);
@@ -10,27 +12,47 @@ export async function cleanupAgyRun(repoPath: string, runId: string, removeWorkt
   const runDir = path.join(root, '.codex-agy-runs', runId);
   if (!existsSync(runDir)) throw new Error('Run ID not found');
 
-  const reportPath = path.join(runDir, 'report.json');
-  if (removeWorktreeFlag && existsSync(reportPath)) {
-    const reportData = JSON.parse(await fs.readFile(reportPath, 'utf-8'));
-    if (reportData.worktreePath && existsSync(reportData.worktreePath)) {
-      try {
-        await removeWorktree(root, reportData.worktreePath);
-      } catch (e: any) {
-        return { status: 'partial_success', error: `Failed to remove worktree: ${e.message}` };
+  const errors: string[] = [];
+  const reportData = await readRunReport(runDir);
+  const runConfig = await readRunConfig(runDir);
+  const backgroundPid = reportData?.backgroundPid ?? null;
+  const worktreePath = reportData?.worktreePath ?? runConfig?.worktreePath ?? null;
+
+  if (typeof backgroundPid === 'number' && backgroundPid > 0) {
+    try {
+      await killProcessTree(backgroundPid);
+      if (reportData) {
+        await writeRunReport(runDir, {
+          ...reportData,
+          status: 'cancelled',
+          currentPhase: 'cancelled',
+          backgroundPid: null,
+          finishedAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          summary: reportData.summary || 'Run cancelled during cleanup.',
+        });
       }
+    } catch (e: any) {
+      errors.push(`Failed to stop background runner: ${e.message}`);
     }
   }
 
-  // We don't delete the run logs automatically unless requested, maybe just let the user know.
-  // The prompt says: "用于清理临时日志或 worktree。不要删除用户代码，必须谨慎。"
-  
-  if (!removeWorktreeFlag) {
-    // maybe clean up big diffs
-    const diffPath = path.join(runDir, 'diff.patch');
-    if (existsSync(diffPath)) {
-      await fs.unlink(diffPath);
+  if (removeWorktreeFlag && worktreePath && existsSync(worktreePath)) {
+    try {
+      await removeWorktree(root, worktreePath);
+    } catch (e: any) {
+      errors.push(`Failed to remove worktree: ${e.message}`);
     }
+  }
+
+  try {
+    await fs.rm(runDir, { recursive: true, force: true });
+  } catch (e: any) {
+    errors.push(`Failed to remove run directory: ${e.message}`);
+  }
+
+  if (errors.length > 0) {
+    return { status: 'partial_success', error: errors.join(' | ') };
   }
 
   return { status: 'success', message: `Cleanup performed for run ${runId}` };

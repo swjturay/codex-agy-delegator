@@ -2,6 +2,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { getGitRoot } from './git.js';
 import { existsSync } from 'fs';
+import { createInitialRunReport, readRunConfig, type RunReport } from './runArtifacts.js';
 
 export type ReportDetail = 'compact' | 'full' | 'logs' | 'diffStat' | 'patch';
 
@@ -15,7 +16,7 @@ function capString(value: string, maxBytes: number): string {
   return `${value.slice(0, maxBytes)}\n... truncated to ${maxBytes} bytes ...`;
 }
 
-function compactReport(reportData: any) {
+function compactReport(reportData: RunReport | null) {
   if (!reportData) return null;
   const compact: any = {
     status: reportData.status,
@@ -39,11 +40,15 @@ function compactReport(reportData: any) {
     reviewFocus: reportData.reviewFocus ?? [],
     assumptions: reportData.assumptions ?? [],
     rawReportPath: reportData.rawReportPath,
+    currentPhase: reportData.currentPhase,
+    startedAt: reportData.startedAt,
+    updatedAt: reportData.updatedAt,
+    finishedAt: reportData.finishedAt,
   };
 
   if (reportData.error) compact.error = reportData.error;
-  if (reportData.violatedFiles?.length > 0) compact.violatedFiles = reportData.violatedFiles;
-  if (reportData.outsideAllowedFiles?.length > 0) compact.outsideAllowedFiles = reportData.outsideAllowedFiles;
+  if ((reportData.violatedFiles?.length ?? 0) > 0) compact.violatedFiles = reportData.violatedFiles;
+  if ((reportData.outsideAllowedFiles?.length ?? 0) > 0) compact.outsideAllowedFiles = reportData.outsideAllowedFiles;
 
   return compact;
 }
@@ -62,9 +67,14 @@ export async function getAgyRunReport(repoPath: string, runId: string, options: 
   if (!existsSync(runDir)) throw new Error('Run ID not found');
 
   const reportPath = path.join(runDir, 'report.json');
-  let reportData = null;
+  let reportData: RunReport | null = null;
   if (existsSync(reportPath)) {
     reportData = JSON.parse(await fs.readFile(reportPath, 'utf-8'));
+  } else {
+    const config = await readRunConfig(runDir);
+    if (config) {
+      reportData = createInitialRunReport(config);
+    }
   }
 
   const files = await fs.readdir(runDir);
@@ -76,6 +86,9 @@ export async function getAgyRunReport(repoPath: string, runId: string, options: 
       runDir,
       stdout: await readIfExists(path.join(runDir, 'agy.stdout.log'), maxBytes),
       stderr: await readIfExists(path.join(runDir, 'agy.stderr.log'), maxBytes),
+      internalLog: await readIfExists(path.join(runDir, 'agy.internal.log'), maxBytes),
+      runnerStdout: await readIfExists(path.join(runDir, 'runner.stdout.log'), maxBytes),
+      runnerStderr: await readIfExists(path.join(runDir, 'runner.stderr.log'), maxBytes),
       logsAvailable: files,
     };
   }
