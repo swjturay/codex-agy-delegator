@@ -33,8 +33,8 @@
     "dev": "tsx watch src/index.ts",
     "typecheck": "tsc --noEmit",
     "selfcheck": "echo 'Compiled and running'",
-    "test:unit": "node --import tsx --test tests/*.test.ts",
-    "test:coverage": "node --experimental-test-coverage --import tsx --test tests/*.test.ts",
+    "test:unit": "node scripts/run-tests.cjs",
+    "test:coverage": "node scripts/run-tests.cjs --coverage",
     "test": "npm run build && npm run test:unit && npm run selfcheck",
     "setup": "node scripts/install.cjs",
     "prepublishOnly": "npm run typecheck && npm test"
