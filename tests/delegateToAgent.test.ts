@@ -76,7 +76,8 @@ test('custom backend completes, applies, and cleans up an isolated run', async (
   });
   assert.strictEqual(applyResult.status, 'success');
   assert.strictEqual(
-    await fs.readFile(path.join(repoPath, 'result.txt'), 'utf-8'),
+    (await fs.readFile(path.join(repoPath, 'result.txt'), 'utf-8'))
+      .replace(/\r\n/gu, '\n'),
     'delegated\n',
   );
 
@@ -166,7 +167,8 @@ test('changes committed by a worker are still captured in the patch', async () =
   });
   assert.strictEqual(applied.status, 'success');
   assert.strictEqual(
-    await fs.readFile(path.join(repoPath, 'result.txt'), 'utf-8'),
+    (await fs.readFile(path.join(repoPath, 'result.txt'), 'utf-8'))
+      .replace(/\r\n/gu, '\n'),
     'delegated\n',
   );
 

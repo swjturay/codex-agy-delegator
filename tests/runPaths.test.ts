@@ -1,4 +1,6 @@
 import assert from 'node:assert';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import test from 'node:test';
 
 import {
@@ -14,8 +16,12 @@ test('run IDs reject path traversal and separators', () => {
 });
 
 test('run directories stay under the managed root', () => {
-  const runDir = resolveNewRunDir('/tmp/example', 'safe-run_1.2');
-  assert.strictEqual(runDir, '/tmp/example/.codex-agent-runs/safe-run_1.2');
+  const repoRoot = path.join(os.tmpdir(), 'example');
+  const runDir = resolveNewRunDir(repoRoot, 'safe-run_1.2');
+  assert.strictEqual(
+    path.relative(repoRoot, runDir),
+    path.join('.codex-agent-runs', 'safe-run_1.2'),
+  );
 });
 
 test('only generated sibling worktrees are managed', () => {
