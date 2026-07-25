@@ -1,0 +1,12 @@
+{
+  "summary": "Converted the requested model interfaces to type aliases.",
+  "risk_notes": [
+    "Type aliases do not support declaration merging."
+  ],
+  "review_focus": [
+    "src/models/user.ts"
+  ],
+  "assumptions": [
+    "Intersection types should replace interface inheritance."
+  ]
+}

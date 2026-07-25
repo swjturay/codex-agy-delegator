@@ -9,7 +9,7 @@ import { getAgyRunReport } from '../src/getAgyRunReport.js';
 import { writeRunConfig, type RunConfig } from '../src/runArtifacts.js';
 
 function git(args: string[], cwd: string) {
-  execFileSync('git', args, { cwd, stdio: 'pipe' });
+  return execFileSync('git', args, { cwd, encoding: 'utf-8' });
 }
 
 async function createTempRepo() {
@@ -30,10 +30,12 @@ test('getAgyRunReport falls back to run config when the final report is not writ
   await fs.mkdir(runDir, { recursive: true });
 
   const config: RunConfig = {
+    schemaVersion: 2,
     runId,
     root: repoPath,
     runDir,
     targetCwd: repoPath,
+    baseCommit: git(['rev-parse', 'HEAD'], repoPath).trim(),
     branchName: 'agent/pending-run',
     worktreePath: null,
     taskContent: '# Task\npending',
@@ -41,6 +43,11 @@ test('getAgyRunReport falls back to run config when the final report is not writ
     forbiddenFiles: [],
     testCommands: [],
     timeoutMs: 1000,
+    testTimeoutMs: 1000,
+    agent: 'agy',
+    agentVersion: 'agy 1.1.1',
+    permissionMode: 'workspace-write',
+    allowUnsafe: false,
   };
 
   await writeRunConfig(runDir, config);
@@ -51,5 +58,5 @@ test('getAgyRunReport falls back to run config when the final report is not writ
   assert.ok(report);
   assert.strictEqual(report.status, 'queued');
   assert.strictEqual(report.currentPhase, 'queued');
-  assert.strictEqual(report.summary, 'Run queued. Poll get_agy_run_report for progress.');
+  assert.strictEqual(report.summary, 'Run queued. Poll get_agent_run_report for progress.');
 });

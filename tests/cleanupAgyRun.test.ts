@@ -40,7 +40,10 @@ test('cleanupAgyRun removes the run directory when no worktree cleanup is reques
 
 test('cleanupAgyRun removes both the worktree and run directory when requested', async () => {
   const repoPath = await createTempRepo();
-  const worktreeRoot = path.join(path.dirname(repoPath), 'worktrees');
+  const worktreeRoot = path.join(
+    path.dirname(repoPath),
+    `${path.basename(repoPath)}-agent-worktrees`,
+  );
   const worktreePath = path.join(worktreeRoot, 'run-with-worktree');
   const runId = 'run-with-worktree';
   const runDir = path.join(repoPath, '.codex-agy-runs', runId);
@@ -60,4 +63,34 @@ test('cleanupAgyRun removes both the worktree and run directory when requested',
   assert.strictEqual(result.status, 'success');
   assert.strictEqual(existsSync(worktreePath), false);
   assert.strictEqual(existsSync(runDir), false);
+});
+
+test('cleanupAgyRun rejects traversal without removing repository files', async () => {
+  const repoPath = await createTempRepo();
+
+  await assert.rejects(
+    cleanupAgyRun(repoPath, '..', true),
+    /Invalid run ID/u,
+  );
+  assert.strictEqual(existsSync(path.join(repoPath, 'README.md')), true);
+  assert.match(await fs.readFile(path.join(repoPath, 'README.md'), 'utf-8'), /seed/u);
+});
+
+test('cleanupAgyRun refuses an untrusted worktree path and retains recovery data', async () => {
+  const repoPath = await createTempRepo();
+  const runId = 'tampered-worktree';
+  const runDir = path.join(repoPath, '.codex-agy-runs', runId);
+  await fs.mkdir(runDir, { recursive: true });
+  await fs.writeFile(
+    path.join(runDir, 'report.json'),
+    JSON.stringify({ runId, status: 'success', worktreePath: repoPath }),
+    'utf-8',
+  );
+
+  const result = await cleanupAgyRun(repoPath, runId, true);
+
+  assert.strictEqual(result.status, 'partial_success');
+  assert.match(result.error as string, /outside the managed worktree directory/u);
+  assert.strictEqual(existsSync(path.join(repoPath, 'README.md')), true);
+  assert.strictEqual(existsSync(runDir), true);
 });

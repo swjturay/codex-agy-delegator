@@ -1,7 +1,30 @@
 {
   "name": "codex-agy-delegator",
-  "version": "0.1.0",
-  "description": "MCP Server for Codex to delegate tasks to Antigravity CLI",
+  "version": "0.2.0",
+  "description": "Secure, worktree-isolated MCP delegator for Antigravity, Codex, Claude, and custom coding agents",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/swjturay/codex-agy-delegator.git"
+  },
+  "homepage": "https://github.com/swjturay/codex-agy-delegator#readme",
+  "bugs": {
+    "url": "https://github.com/swjturay/codex-agy-delegator/issues"
+  },
+  "files": [
+    "dist",
+    "scripts",
+    "skills",
+    "examples",
+    "install.sh",
+    "install.ps1",
+    "README_zh-CN.md",
+    "CHANGELOG.md",
+    "SECURITY.md"
+  ],
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
@@ -11,16 +34,25 @@
     "typecheck": "tsc --noEmit",
     "selfcheck": "echo 'Compiled and running'",
     "test:unit": "node --import tsx --test tests/*.test.ts",
+    "test:coverage": "node --experimental-test-coverage --import tsx --test tests/*.test.ts",
     "test": "npm run build && npm run test:unit && npm run selfcheck",
-    "setup": "node scripts/install.cjs"
+    "setup": "node scripts/install.cjs",
+    "prepublishOnly": "npm run typecheck && npm test"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.1"
+    "@modelcontextprotocol/sdk": "^1.29.0"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
-    "@vercel/ncc": "^0.38.4",
-    "tsx": "^4.22.3",
-    "typescript": "^5.3.0"
+    "@types/node": "^20.19.43",
+    "@vercel/ncc": "^0.44.1",
+    "tsx": "^4.23.1",
+    "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "@hono/node-server": "^2.0.5",
+    "body-parser": "^2.3.0",
+    "esbuild": "^0.28.1",
+    "fast-uri": "^3.1.4",
+    "hono": "^4.12.27"
   }
 }

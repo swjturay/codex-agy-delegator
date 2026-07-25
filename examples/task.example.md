@@ -1,13 +1,17 @@
 # Task
 Please update all `interface` definitions to `type` definitions in the `src/models` directory. Make sure to preserve all comments and exported types.
 
-# Constraints
-Allowed Files:
+# File constraints
+Allowed files:
 - src/models/*.ts
 
-Forbidden Files:
+Forbidden files:
 - src/models/legacy.ts
 
 # Worker Instructions
-You are an agy worker. You MUST output a JSON block at the very end of your final response containing your report, enclosed in ```json.
-Your JSON must follow the AgyWorkerReport format. Do not violate forbidden files.
+You are a delegated coding worker. Do not commit or push. End your response with
+one fenced JSON block:
+
+```json
+{"summary":"","risk_notes":[],"review_focus":[],"assumptions":[]}
+```
