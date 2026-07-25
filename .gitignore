@@ -1,6 +1,10 @@
 node_modules/
 .env
-.DS_Store
+.codex-agent-runs/
 .codex-agy-runs/
+*-agent-worktrees/
 *-agy-worktrees/
 .antigravitycli/
+coverage/
+.DS_Store
+npm-debug.log*

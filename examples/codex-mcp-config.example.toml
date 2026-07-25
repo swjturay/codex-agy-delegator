@@ -1,4 +1,6 @@
-[mcp_servers.codex-agy-delegator]
-command = "node"
+[mcp_servers.codex-agent-delegator]
+command = "/absolute/path/to/node"
 # PLEASE REPLACE WITH YOUR ACTUAL ABSOLUTE PATH
 args = ["/absolute/path/to/tools/codex-agy-delegator/dist/index.js"]
+startup_timeout_sec = 15.0
+tool_timeout_sec = 120.0

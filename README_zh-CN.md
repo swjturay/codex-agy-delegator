@@ -1,114 +1,194 @@
-# Codex-Agy Delegator MCP Server
+# Codex Agent Delegator
 
 <div align="center">
   <a href="README.md">English</a> | <a href="README_zh-CN.md">简体中文</a>
 </div>
 
-<br/>
-
-<div align="center">
-  <img alt="Node.js" src="https://img.shields.io/badge/Node.js-18+-green.svg" />
-  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.3+-blue.svg" />
-  <img alt="License" src="https://img.shields.io/badge/License-MIT-yellow.svg" />
+<p align="center">
+  <img alt="Node.js 20+" src="https://img.shields.io/badge/Node.js-20%2B-green.svg" />
   <img alt="MCP" src="https://img.shields.io/badge/MCP-Supported-purple.svg" />
-</div>
+  <a href="https://github.com/swjturay/codex-agy-delegator/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/swjturay/codex-agy-delegator/actions/workflows/ci.yml/badge.svg" /></a>
+  <a href="https://github.com/swjturay/codex-agy-delegator/releases"><img alt="Release" src="https://img.shields.io/github/v/release/swjturay/codex-agy-delegator" /></a>
+  <img alt="License" src="https://img.shields.io/badge/License-MIT-yellow.svg" />
+</p>
 
-<br/>
+Codex Agent Delegator 是一个本地 MCP 服务，可将边界明确的编码任务委派给
+Antigravity（`agy`）、OpenAI Codex、Claude Code 或指定的自定义可执行程序。
+每次运行默认放在独立的 Git worktree 中，并返回便于审查的精简报告。
 
-> **节省 Codex Token，为 AI 结对编程提速。**  
-> Codex-Agy Delegator 是一个基于 MCP (Model Context Protocol) 协议的服务，允许 **Codex** 将低风险、大批量或重复性的编码任务安全地委派给本地的 **Antigravity (agy)** Worker 去执行。
+v0.2.0 将原先仅支持 agy 的执行链路升级为通用代理链路，同时保留 v0.1
+的三个 agy 工具名作为兼容别名。
 
----
+## 支持的代理
 
-## 📖 目录
-- [为什么需要这个项目？](#-为什么需要这个项目)
-- [核心架构与原理](#-核心架构与原理)
-- [安装指南](#-安装指南)
-- [Codex 一键配置](#-codex-一键配置)
-- [配置 Skills](#-配置-skills)
-- [典型工作流](#-典型工作流)
-- [安全与隔离](#-安全与隔离)
+| 后端 | 最低要求/准备 | 默认安全编辑模式 |
+| --- | --- | --- |
+| Antigravity | `agy` 1.1.1+，已登录 | `--sandbox --mode accept-edits` |
+| OpenAI Codex | Codex CLI，已登录 | `codex exec --ephemeral --ignore-user-config --sandbox workspace-write` |
+| Claude Code | Claude Code CLI，已登录 | `claude --print --output-format json --permission-mode acceptEdits` |
+| 自定义程序 | 可执行文件与参数数组 | 必须设置 `allowUnsafe: true`；绝不通过 shell 运行 |
 
----
+默认权限是 `workspace-write`。`full-access` 一定要显式设置
+`allowUnsafe: true`。自定义程序也必须显式确认，因为服务无法验证它的沙箱。
 
-## 🎯 为什么需要这个项目？
-相较于让 Codex 亲自去阅读整个项目文件、输出巨大的代码变更并消耗海量的上下文（Token），该系统会将任务下发给一个隔离在 `git worktree` 中的 `agy` 执行者。
-- **极致的 Token 优化：** Codex 只需要审查执行者返回的极简 JSON 报告，不再需要阅读动辄几千行的 diff。
-- **安全隔离：** Worker 的所有修改都被限制在独立的 Git worktree 中，不会污染你的当前分支。
-- **角色分离：** Codex 专职担任审查者（Reviewer）与架构师，脏活累活全权交给 agy。
+## 环境要求
 
-## 🛠 核心架构与原理
-1. **MCP Server (执行层):** 负责管理 git worktrees、生成严格的 `task.md`、唤起 `agy` 执行者、运行测试脚本、截断冗长日志，并从结果中提取结构化报告。
-2. **Skills (规则层):**
-   - **Codex Skills:** 教授 Codex *何时* 应该委派任务，以及 *如何* 在不重新阅读全库的前提下审查 JSON 报告。
-   - **Agy Skill:** 将 Antigravity 代理约束为 Worker 角色，强制其遵循 `allowedFiles` 和 `forbiddenFiles`，并严格输出 JSON。
+- macOS、Linux 或 Windows
+- Node.js 20 或更高版本
+- Git
+- 上表中至少一个已经完成认证的代理 CLI
+- Codex 或其他支持 MCP 的宿主客户端
 
-## 📋 前置准备
-在安装之前，请确保您的环境已完成以下准备：
-1. **Node.js 与 TypeScript**：需要 Node 18 或更高版本。
-2. **Antigravity CLI (`agy`)**：MCP Server 依赖本地的 Antigravity CLI 来执行被委派的代码任务。
-   - 必须全局安装 `agy`，并确保可在命令行的 `$PATH` 中直接调用。
-   - 必须**提前完成 `agy` 的登录和认证配置**。确保 CLI 在后台非交互式运行时，不会因为缺少认证凭证或弹窗而被阻塞。
-3. **Codex**：本地已安装 Codex 或支持 MCP 协议的客户端。
+## macOS 安装
 
-## ⚡ 极速安装 (一键脚本)
+在“终端”中执行：
 
-您**完全不需要**手动拉取代码、安装依赖或编译。只需在终端中根据您的操作系统执行以下对应的命令：
-
-**对于 macOS 和 Linux 用户 (Bash):**
 ```bash
 curl -fsSL https://raw.githubusercontent.com/swjturay/codex-agy-delegator/main/install.sh | bash
 ```
 
-**对于 Windows 用户 (PowerShell):**
+Mac 全新安装会使用系统惯例目录：
+
+```text
+~/Library/Application Support/codex-agent-delegator
+```
+
+安装器会：
+
+1. 检查 Git、Node.js 与 npm；
+2. 克隆项目，或只对干净的旧安装执行 fast-forward 更新；
+3. 根据锁文件安装依赖并构建 `dist/index.js`；
+4. 安装随项目提供的 Codex Skills；
+5. 备份并更新 `~/.codex/config.toml`。
+
+如果检测到已有的 `~/.codex-agy-delegator` v0.1 安装，会在原目录平滑升级。
+安装后重启 Codex，再调用 `list_agent_backends` 检查本机代理。
+
+## MCP 工具
+
+| 工具 | 用途 |
+| --- | --- |
+| `delegate_to_agent` | 启动 agy、Codex、Claude 或自定义代理 |
+| `get_agent_run_report` | 查询进度，或读取日志、diff 统计、补丁 |
+| `apply_agent_run` | 将已审查的补丁应用到干净的目标仓库 |
+| `cleanup_agent_run` | 取消任务并安全清理运行记录/worktree |
+| `list_agent_backends` | 检查内置代理 CLI 是否已安装且兼容 |
+
+兼容工具仍可使用：`delegate_to_agy`、`get_agy_run_report`、
+`cleanup_agy_run`。
+
+`delegate_to_agent` 要求明确传入 `agent`；旧的 `delegate_to_agy`
+别名始终选择 Antigravity。
+
+### 委派给 Codex
+
+```json
+{
+  "repoPath": "/项目的绝对路径",
+  "task": "为 URL 解析器补充单元测试。",
+  "agent": "codex",
+  "allowedFiles": ["src/url.ts", "tests/url.test.ts"],
+  "forbiddenFiles": [".env", "package-lock.json"],
+  "testCommands": ["npm run typecheck", "npm test"],
+  "permissionMode": "workspace-write",
+  "useWorktree": true
+}
+```
+
+### 委派给 Claude Code
+
+```json
+{
+  "repoPath": "/项目的绝对路径",
+  "task": "更新分页字段的 API 文档。",
+  "agent": "claude",
+  "allowedFiles": ["docs/**"],
+  "testCommands": ["npm run lint:docs"]
+}
+```
+
+默认异步执行。拿到 `runId` 后查询：
+
+```json
+{
+  "repoPath": "/项目的绝对路径",
+  "runId": "委派返回的_RUN_ID",
+  "detail": "compact"
+}
+```
+
+审查成功后，应用补丁必须显式确认：
+
+```json
+{
+  "repoPath": "/项目的绝对路径",
+  "runId": "委派返回的_RUN_ID",
+  "confirm": true
+}
+```
+
+`needs_review` 状态还要设置 `allowNeedsReview: true`；`blocked`
+状态永远不能应用。
+
+## 安全模型
+
+- 自动生成的 Git worktree 避免污染当前分支。
+- 使用各代理自己的沙箱/权限模式限制进程。
+- 代理结束后独立校验允许和禁止文件规则。
+- 测试命令与自定义程序都按“可执行文件 + 参数数组”运行，不使用
+  `shell: true`。
+- 删除前严格验证 run ID 与清理目标。
+- worktree 不在受管的同级目录时，清理操作会拒绝执行。
+- 服务不会替你提交或推送代码。
+
+Git worktree 不是操作系统沙箱。建议保留 `workspace-write`、设置尽可能窄的
+文件范围，只在明确审查过的场景使用 `full-access`。不要委派密钥处理或不可逆
+的数据迁移。
+
+运行记录保存在 `.codex-agent-runs/`；worktree 保存在仓库同级的
+`<仓库名>-agent-worktrees/`。v0.2 仍可读取和清理 v0.1 的旧运行记录。
+
+## 其他平台与手动安装
+
+Linux：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/swjturay/codex-agy-delegator/main/install.sh | bash
+```
+
+Windows PowerShell：
+
 ```powershell
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/swjturay/codex-agy-delegator/main/install.ps1" -UseBasicParsing | Invoke-Expression
 ```
 
-该脚本将全自动为您完成以下工作：
-1. 将仓库安全地下载到 `~/.codex-agy-delegator` 隐藏目录中。
-2. 自动安装 Node.js 依赖并编译 TypeScript 代码。
-3. 自动探寻您的 Codex 配置文件（如 `~/.codex/mcp.toml`）并注入 MCP 服务配置。
-4. 自动为您将设定好的 Prompt (Skills) 注入到 Codex 和 Antigravity 默认规则目录中。
+手动构建：
 
-安装完成后，**重启您的 Codex 客户端**即可直接使用！
-
-<details>
-<summary>手动配置 (如果您想指定其他目录)</summary>
-
-### 手动配置 MCP
-将以下内容手动添加到你的 `mcp.toml` 或 `config.json` 中：
-
-```toml
-[mcp_servers.codex-agy-delegator]
-command = "node"
-args = ["/你本地的绝对路径/codex-agy-delegator/dist/src/index.js"]
+```bash
+git clone https://github.com/swjturay/codex-agy-delegator.git
+cd codex-agy-delegator
+npm ci
+npm run build
 ```
 
-### 手动安装 Skills
-**对于 Codex**: 复制或链接提供的 Skills 到您的 Codex 自定义规则或 Prompt 中：
-- [`skills/codex-delegation/SKILL.md`](skills/codex-delegation/SKILL.md) (教 Codex *如何委派*)
-- [`skills/codex-review/SKILL.md`](skills/codex-review/SKILL.md) (教 Codex *如何审查*)
+将服务写入 `~/.codex/config.toml`：
 
-**对于 Antigravity (agy)**: MCP Server 会自动生成带有严格指令的 `task.md` 传给 `agy`。为了最佳效果，您可以将 [`skills/agy-worker/SKILL.md`](skills/agy-worker/SKILL.md) 预置为 agy 的系统 Prompt。
-</details>
+```toml
+[mcp_servers.codex-agent-delegator]
+command = "/node/的绝对路径"
+args = ["/项目绝对路径/codex-agy-delegator/dist/index.js"]
+startup_timeout_sec = 15.0
+tool_timeout_sec = 120.0
+```
 
-## 🚀 典型工作流
+## 开发与验证
 
-1. **用户请求：** "Codex，请把 `src/models/` 目录下所有的 `interface` 换成 `type`。"
-2. **Codex 委派任务：** Codex 调用 MCP 工具：
-   ```json
-   {
-     "repoPath": "/path/to/repo",
-     "task": "把 src/models/ 下所有的 interface 转换为 type",
-     "allowedFiles": ["src/models/*.ts"]
-   }
-   ```
-3. **MCP Server 执行：** 
-   创建 `.agy-worktrees` 分支 -> 唤起 `agy` -> 运行测试 -> 提取 `AgyWorkerReport` JSON。
-4. **Codex 审查：** Codex 收到精简的 JSON。看到测试通过，且风险点为空后，回复：*"Worker 已经成功完成了重构，测试通过。您可以去合并 worktree 分支了。"*
+```bash
+npm ci
+npm run typecheck
+npm test
+npm run test:coverage
+```
 
-## 🛡 安全与隔离
-- **不自动提交/推送：** 代码修改将完全停留在安全的 worktree 中。
-- **禁止文件拦截：** 如果 Worker 意外修改了 `forbiddenFiles`，MCP Server 会立刻拦截并标记任务为 `blocked`。
-- **超时杀死：** 对 Agy 进程设定严格的超时阈值，防止跑偏或死循环。
+迁移说明见 [CHANGELOG.md](CHANGELOG.md)，安全问题报告方式见
+[SECURITY.md](SECURITY.md)。

@@ -1,59 +1,59 @@
-# Codex Delegation Skill
+# Agent Delegation Skill
 
 ## Purpose
-This skill teaches Codex when and how to delegate tasks to the Antigravity (agy) worker via the MCP server, instead of consuming your own tokens to implement changes directly.
 
-## Suitable Tasks for Delegation
-Delegate tasks that are:
-- Bulk refactoring (e.g., renaming variables across many files)
-- Adding or backfilling unit tests
-- Documentation generation or commenting
-- Mechanical migrations (e.g., updating API versions)
-- Searching the codebase and organizing candidate files
-- Low-risk UI or style tweaks
+Use the local `codex-agent-delegator` MCP server to hand bounded, mechanical
+coding work to an installed agent while keeping architecture and review in the
+current Codex task.
 
-## Unsuitable Tasks (Do NOT Delegate)
-Do not delegate tasks that involve:
-- Security-sensitive code (e.g., Auth, Payments, Cryptography)
-- Data migrations that are irreversible or highly complex
-- Major architectural decisions or redesigns
-- Reading or modifying secrets and privacy-sensitive files
-- Tasks where the user explicitly asked you (Codex) to write the code yourself
+## Good delegation candidates
 
-## How to Delegate
-Before delegating, you must synthesize a "narrow task card". The task must explicitly state:
-- **Goal:** The exact expected outcome.
-- **Allowed Files:** The specific files or glob patterns the worker can touch.
-- **Forbidden Files:** The files the worker must not touch.
-- **Acceptance Criteria / Tests:** Commands to verify success.
-- **Output Format:** Strict JSON report format (the MCP server enforces this).
+- mechanical refactors and API migrations;
+- focused unit-test additions;
+- documentation updates;
+- repetitive style or UI changes;
+- repository searches that benefit from a persisted report.
 
-### Instructions for Codex
-1. **Chain of Thought:** Before calling the tool, silently think about the architecture and which files should be touched.
-2. **Context Minimization:** Do not provide the entire project context to the worker. Give only the necessary context in the task description.
-3. **Trigger:** Call the `delegate_to_agy` MCP tool.
-4. **Post-Delegation Review:** Review the returned structured report (`changedFiles`, `tests`, `riskNotes`, `reviewFocus`). If the worker fails or returns incomplete results, do a minimal necessary review based on `reviewFocus`. Do not reread the entire project.
+Do not delegate secrets, authentication/payment/cryptography changes,
+irreversible data migrations, major architecture decisions, or a task the user
+explicitly asked the current agent to implement personally.
 
-## 🌟 Examples
+## Required task card
 
-### Good Delegation
+Before delegating, define:
+
+- the exact expected outcome;
+- narrow `allowedFiles` and appropriate `forbiddenFiles`;
+- acceptance commands in `testCommands`;
+- the backend: `agy`, `codex`, or `claude`;
+- the least privilege needed.
+
+Use `permissionMode: "workspace-write"` and `useWorktree: true` for edits.
+Do not set `full-access` or `allowUnsafe` unless the user has authorized the
+specific risk. A custom backend always requires that explicit trust decision.
+
+## Workflow
+
+1. Call `list_agent_backends` if backend availability is unknown.
+2. Call `delegate_to_agent` with a narrow task card.
+3. For the default asynchronous mode, poll `get_agent_run_report` using the
+   returned `runId`.
+4. Follow the review skill. Fetch logs or patches only when the compact report
+   does not provide enough evidence.
+5. Call `apply_agent_run` only after review and with `confirm: true`.
+6. Call `cleanup_agent_run` when the run and worktree are no longer needed.
+
+## Example
+
 ```json
 {
   "repoPath": "/workspace/my-app",
-  "task": "Refactor all `interface` definitions to `type` aliases in the models directory. Ensure they are exported.",
+  "task": "Convert model interfaces to exported type aliases without changing runtime code.",
+  "agent": "codex",
   "allowedFiles": ["src/models/*.ts"],
-  "forbiddenFiles": ["src/models/legacy/*.ts"],
+  "forbiddenFiles": ["src/models/legacy/**", ".env"],
   "testCommands": ["npm run typecheck"],
+  "permissionMode": "workspace-write",
   "useWorktree": true
-}
-```
-
-### Bad Delegation (Too Vague & Broad)
-```json
-{
-  "repoPath": "/workspace/my-app",
-  "task": "Fix the bugs and make the code better.",
-  "allowedFiles": ["*"],
-  "useWorktree": false
 }
 ```

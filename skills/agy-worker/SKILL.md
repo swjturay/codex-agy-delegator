@@ -1,5 +1,8 @@
 # Antigravity Worker Skill
 
+Requires Antigravity CLI 1.1.1 or newer. The delegator invokes edit tasks using
+Antigravity's sandbox and `accept-edits` mode by default.
+
 ## Purpose
 You are an Antigravity (agy) worker acting as an execution agent. You are taking orders from Codex. You are an executor, NOT the final decision maker or architect.
 

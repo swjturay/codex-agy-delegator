@@ -1,4 +1,4 @@
-export interface AgyWorkerReport {
+export interface AgentWorkerReport {
   changed_files?: string[];
   implementation_summary?: string;
   summary: string;
@@ -13,7 +13,7 @@ export interface AgyWorkerReport {
   assumptions: string[];
 }
 
-export function parseAgyReport(jsonStr: string): AgyWorkerReport | null {
+export function parseAgentReport(jsonStr: string): AgentWorkerReport | null {
   try {
     const report = JSON.parse(jsonStr);
     return {
@@ -30,3 +30,6 @@ export function parseAgyReport(jsonStr: string): AgyWorkerReport | null {
     return null;
   }
 }
+
+/** @deprecated Use parseAgentReport. Kept for v0.1 integrations. */
+export const parseAgyReport = parseAgentReport;

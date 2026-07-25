@@ -1,35 +1,25 @@
-# Codex Review Skill
+# Delegated Agent Review Skill
 
 ## Purpose
-This skill teaches Codex how to efficiently review the results of tasks delegated to the Antigravity (agy) worker, minimizing token usage while maintaining high code quality and safety.
 
-## Review Sequence
-When the MCP `delegate_to_agy` tool returns a report, follow this order of review:
-1. **Check Status:** Look at the `status` field (`success`, `failed`, `blocked`, `needs_review`).
-2. **Review Changed Files:** Read `changed.count` and the capped `changed.files` list. Fetch the full report only when the cap omitted files or something looks unexpected.
-3. **Check Diff Stat:** Only request `get_agy_run_report` with `detail: "diffStat"` when the compact summary is insufficient.
-4. **Check Tests:** Look at `tests.passed` and failed commands. Request logs only for failures.
-5. **Check Risk Notes:** Read the `riskNotes` provided by the worker.
-6. **Focus Review:** Only read the actual diff or open files mentioned in `reviewFocus`. Do not indiscriminately read all changed files unless necessary.
+Review delegated changes efficiently without treating a worker report as proof
+of correctness.
 
-## Priority Areas for Review
-Pay special attention to changes involving:
-- Public API signatures
-- Data model and schema changes
-- Authentication and permission logic
-- Error handling mechanisms
-- Dependency updates
-- Test failures or regressions
+## Review sequence
 
-## What to Avoid
-To save tokens:
-- **Avoid reading unrelated files.** Trust the worker's isolation if tests pass and risk notes are clean.
-- **Do not redo mechanical work.** If the worker successfully migrated 50 files, don't read them all; sample a few or rely on tests.
-- **Do not expand the refactor scope** without strong evidence that it is broken.
+1. Check `status`: `success`, `needs_review`, `blocked`, `failed`, or a running
+   state.
+2. Confirm the backend, changed-file count, and changed-file list match the task.
+3. Check every verification command, exit code, and timeout flag.
+4. Read `riskNotes`, `reviewFocus`, and `assumptions`.
+5. Request `detail: "diffStat"` when scope is unclear.
+6. Inspect the patch or focused source files for public API, data model,
+   permissions, error handling, dependencies, and failed-test changes.
+7. Decide: accept, request rework, make a minor local correction, or block.
 
-## Final Output / Decision
-Based on your review, you must output one of the following decisions to the user:
-- **Accept:** The changes are good. (If worktree was used, you can provide the command to merge/apply).
-- **Rework Required:** Pass feedback back to the worker for another run.
-- **Minor Fixes:** Fix small issues yourself instead of doing a full roundtrip.
-- **Block:** Reject the changes due to severe violations or architectural misalignment.
+Never apply a `blocked` run. Treat `needs_review` as unresolved unless the
+underlying failure is understood and explicitly accepted. Applying it requires
+both `confirm: true` and `allowNeedsReview: true`.
+
+After acceptance, call `apply_agent_run` with `confirm: true`, verify the target
+working tree, and then clean up the managed run/worktree.
